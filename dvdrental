@@ -1,0 +1,88 @@
+
+/* Lists all tables in the database */
+SELECT * FROM information_schema.tables WHERE table_schema = 'public';
+
+/* check columns and data types of all tables */
+SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'film' AND table_schema = 'public';
+
+
+/* SELECTING TOP 5 FROM TABLES */
+SELECT * FROM actor LIMIT 5;
+SELECT * FROM film LIMIT 5 OFFSET 10;
+
+
+/* Count of films, customers and rentals */
+SELECT
+    (SELECT COUNT(*) FROM film) AS total_films,
+    (SELECT COUNT(*) FROM customer) AS total_customers,
+    (SELECT COUNT(*) FROM rental) AS total_rentals;
+
+
+/* List distinct categories */
+SELECT DISTINCT(name) FROM category;
+SELECT COUNT(DISTINCT(name)) FROM category;
+
+SELECT first_name, last_name, email FROM customer;
+SELECT CONCAT(first_name, ' ' , last_name), email AS full_name FROM customer;
+
+
+/* List of customers who have ordered atleast once */
+SELECT DISTINCT r.customer_id, c.first_name, c.last_name FROM rental AS r
+INNER JOIN customer AS c on r.customer_id = c.customer_id
+ORDER BY r.customer_id ASC;
+
+
+/* List of customers and no of times they have rented */
+SELECT CONCAT(c.first_name, '', c.last_name) AS full_name, c.email, 
+    COUNT(rental_id) AS No_of_times_rented 
+FROM rental AS r
+    INNER JOIN customer AS c ON r.customer_id = c.customer_id
+GROUP BY c.customer_id
+ORDER BY No_of_times_rented DESC;
+
+
+/* tOP 5 customers who have rented the most */
+SELECT CONCAT(c.first_name, '', c.last_name) AS full_name,
+    c.email,
+    COUNT(rental_id) AS No_of_times_rentedS
+FROM rental AS r
+    INNER JOIN customer AS c ON r.customer_id = c.customer_id
+GROUP BY c.customer_id
+ORDER BY No_of_times_rented DESC
+LIMIT 5;
+/* In PostgreSQL (and most standard SQL databases), if you GROUP BY a table's primary key (PK), 
+you do not need to include other columns from that same table in the GROUP BY clause. c.customer_id */
+
+
+/* List of films and no of times they have been rented */
+SELECT f.film_id,
+    f.title,
+    COUNT(f.title) AS No_of_times_rented
+FROM film AS f
+    INNER JOIN inventory AS i ON f.film_id = i.film_id
+    INNER JOIN rental AS r ON i.inventory_id = r.inventory_id
+GROUP BY f.film_id
+ORDER BY No_of_times_rented DESC
+LIMIT 5;
+
+
+/* Find the total number of rentals per movie category. */
+SELECT c.category_id, 
+    c.name, 
+    COUNT(*) AS No_of_times_rented
+FROM category AS c
+    INNER JOIN film_category AS fc ON c.category_id = fc.category_id
+    INNER JOIN inventory AS i ON fc.film_id = i.film_id
+    INNER JOIN rental AS r ON i.inventory_id = r.inventory_id
+GROUP BY c.category_id
+ORDER BY No_of_times_rented DESC;
+
+SELECT c.name,
+    COUNT(DISTINCT r.rental_id) AS No_of_times_rented
+FROM category AS c
+    INNER JOIN film_category AS fc ON c.category_id = fc.category_id
+    INNER JOIN inventory AS i ON fc.film_id = i.film_id
+    INNER JOIN rental AS r ON i.inventory_id = r.inventory_id
+GROUP BY c.name
+ORDER BY No_of_times_rented DESC;
+
