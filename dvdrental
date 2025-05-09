@@ -66,24 +66,3 @@ ORDER BY No_of_times_rented DESC
 LIMIT 5;
 
 
-/* Find the total number of rentals per movie category. */
-SELECT c.category_id, 
-    c.name, 
-    COUNT(*) AS No_of_times_rented
-FROM category AS c
-    INNER JOIN film_category AS fc ON c.category_id = fc.category_id
-    INNER JOIN inventory AS i ON fc.film_id = i.film_id
-    INNER JOIN rental AS r ON i.inventory_id = r.inventory_id
-GROUP BY c.category_id
-ORDER BY No_of_times_rented DESC;
-
-/*Method 2 */
-SELECT c.name,
-    COUNT(DISTINCT r.rental_id) AS No_of_times_rented
-FROM category AS c
-    INNER JOIN film_category AS fc ON c.category_id = fc.category_id
-    INNER JOIN inventory AS i ON fc.film_id = i.film_id
-    INNER JOIN rental AS r ON i.inventory_id = r.inventory_id
-GROUP BY c.name
-ORDER BY No_of_times_rented DESC;
-
