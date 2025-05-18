@@ -19,8 +19,8 @@ SELECT
 
 
 /* List distinct categories */
-SELECT DISTINCT(name) FROM category;
-SELECT COUNT(DISTINCT(name)) FROM category;
+SELECT DISTINCT name FROM category;
+SELECT COUNT(DISTINCT name) FROM category;
 
 SELECT first_name, last_name, email FROM customer;
 SELECT CONCAT(first_name, ' ' , last_name), email AS full_name FROM customer;
@@ -65,4 +65,14 @@ GROUP BY f.film_id
 ORDER BY No_of_times_rented DESC
 LIMIT 5;
 
+
+/* Busiest months of year */
+SELECT Extract(Month from rental_date) AS month,
+    Extract(Year from rental_date) AS year,
+count(rental_id) as no_of_rentals
+FROM rental AS r
+GROUP BY 
+    Extract(Year from rental_date),
+    Extract(Month from rental_date)
+ORDER BY no_of_rentals DESC;
 
