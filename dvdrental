@@ -68,6 +68,20 @@ LIMIT 5;
 
 /* Busiest months of year */
 SELECT Extract(Month from rental_date) AS month,
+CASE
+    WHEN Extract(Month FROM rental_date) =1 THEN 'January'
+    WHEN Extract(Month FROM rental_date) =2 THEN 'February'
+    WHEN Extract(Month FROM rental_date) =3 THEN 'March'
+    WHEN Extract(Month FROM rental_date) =4 THEN 'April'
+    WHEN Extract(Month FROM rental_date) =5 THEN 'May'
+    WHEN Extract(Month FROM rental_date) =6 THEN 'June'
+    WHEN Extract(Month FROM rental_date) =7 THEN 'July'
+    WHEN Extract(Month FROM rental_date) =8 THEN 'August'
+    WHEN Extract(Month FROM rental_date) =9 THEN 'September'
+    WHEN Extract(Month FROM rental_date) =10 THEN 'October'
+    WHEN Extract(Month FROM rental_date) =11 THEN 'November'
+    ELSE 'December' END AS month_name,
+    
     Extract(Year from rental_date) AS year,
 count(rental_id) as no_of_rentals
 FROM rental AS r
