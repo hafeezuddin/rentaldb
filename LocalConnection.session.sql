@@ -82,6 +82,7 @@ GROUP BY c.category_id,
 ORDER BY count(r.rental_id) DESC;
 
 
+/* Busiest Months using rental table */
 SELECT EXTRACT(
         MONTH
         from rental_date
@@ -107,3 +108,51 @@ GROUP BY Month
 ORDER BY Month DESC;
 
 
+/* Busiest Months with Year */
+SELECT EXTRACT(
+        YEAR
+        FROM rental_date
+    ) AS YEAR,
+    EXTRACT(
+        MONTH
+        FROM rental_date
+    ) AS MONTH,
+    CASE
+        WHEN EXTRACT(Month FROM rental_date) = 1 THEN 'JAN'
+        WHEN EXTRACT(Month FROM rental_date) = 2 THEN 'FEB'
+        WHEN EXTRACT(Month FROM rental_date) = 3 THEN 'MAR'
+        WHEN EXTRACT(Month FROM rental_date) = 4 THEN 'APR'
+        WHEN EXTRACT(Month FROM rental_date) = 5 THEN 'MAY'
+        WHEN EXTRACT(Month FROM rental_date) = 6 THEN 'JUN'
+        WHEN EXTRACT(Month FROM rental_date) = 7 THEN 'JUL'
+        WHEN EXTRACT(Month FROM rental_date) = 8 THEN 'AUG'
+        WHEN EXTRACT(Month FROM rental_date) = 9 THEN 'SEP'
+        WHEN EXTRACT(Month FROM rental_date) = 10 THEN 'OCT'
+        WHEN EXTRACT(Month FROM rental_date) = 11 THEN 'NOV'
+        WHEN EXTRACT(Month FROM rental_date) = 12 THEN 'DEC'
+        ELSE NULL
+        END AS Month_desc,
+    COUNT(rental_id) AS no_of_rentals
+FROM rental
+GROUP BY 1,
+    2
+ORDER BY no_of_rentals DESC;
+
+
+/* Total Revenue from Rentals */
+SELECT SUM(p.amount) AS total_revenue
+FROM payment p;
+
+
+/* Total revenue year wise */
+SELECT EXTRACT(YEAR FROM p.payment_date), 
+SUM(p.amount)
+FROM payment p
+GROUP BY 1;
+
+
+SELECT EXTRACT(YEAR from p.payment_date) AS year,
+    EXTRACT(MONTH FROM p.payment_date) AS month,
+    SUM(p.amount) AS revenue
+FROM payment p
+GROUP BY 1,2;
