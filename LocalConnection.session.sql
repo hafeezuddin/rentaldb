@@ -80,3 +80,30 @@ FROM category c
 GROUP BY c.category_id,
     c.name
 ORDER BY count(r.rental_id) DESC;
+
+
+SELECT EXTRACT(
+        MONTH
+        from rental_date
+    ) AS Month,
+    CASE
+        WHEN EXTRACT(Month FROM rental_date) = 1 THEN 'JAN'
+        WHEN EXTRACT(Month FROM rental_date) = 2 THEN 'FEB'
+        WHEN EXTRACT(Month FROM rental_date) = 3 THEN 'MAR'
+        WHEN EXTRACT(Month FROM rental_date) = 4 THEN 'APR'
+        WHEN EXTRACT(Month FROM rental_date) = 5 THEN 'MAY'
+        WHEN EXTRACT(Month FROM rental_date) = 6 THEN 'JUN'
+        WHEN EXTRACT(Month FROM rental_date) = 7 THEN 'JUL'
+        WHEN EXTRACT(Month FROM rental_date) = 8 THEN 'AUG'
+        WHEN EXTRACT(Month FROM rental_date) = 9 THEN 'SEP'
+        WHEN EXTRACT(Month FROM rental_date) = 10 THEN 'OCT'
+        WHEN EXTRACT(Month FROM rental_date) = 11 THEN 'NOV'
+        WHEN EXTRACT(Month FROM rental_date) = 12 THEN 'DEC'
+        ELSE NULL
+        END AS Month_desc,
+    COUNT(*)
+FROM rental
+GROUP BY Month
+ORDER BY Month DESC;
+
+
