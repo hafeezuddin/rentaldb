@@ -67,3 +67,16 @@ FROM inventory i
         ON i.inventory_id = r.inventory_id
 GROUP BY i.film_id
 ORDER BY no_of_times_rented DESC;
+
+
+/* Rentals per movie category */
+SELECT c.category_id,
+    c.name,
+    COUNT(r.rental_id)
+FROM category c
+    INNER JOIN film_category fc ON c.category_id = fc.category_id
+    INNER JOIN inventory i ON fc.film_id = i.film_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY c.category_id,
+    c.name
+ORDER BY count(r.rental_id) DESC;
