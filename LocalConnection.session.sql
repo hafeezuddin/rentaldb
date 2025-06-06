@@ -72,14 +72,14 @@ ORDER BY no_of_times_rented DESC;
 /* Rentals per movie category */
 SELECT c.category_id,
     c.name,
-    COUNT(r.rental_id)
+    COUNT(r.rental_id) AS rental_count
 FROM category c
     INNER JOIN film_category fc ON c.category_id = fc.category_id
     INNER JOIN inventory i ON fc.film_id = i.film_id
     INNER JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY c.category_id,
     c.name
-ORDER BY count(r.rental_id) DESC;
+ORDER BY rental_count DESC;
 
 
 /* Busiest Months using rental table */
@@ -151,8 +151,25 @@ FROM payment p
 GROUP BY 1;
 
 
+/* Total revenue segregated by year and month */
 SELECT EXTRACT(YEAR from p.payment_date) AS year,
     EXTRACT(MONTH FROM p.payment_date) AS month,
+    CASE
+        WHEN EXTRACT(Month FROM payment_date) = 1 THEN 'JAN'
+        WHEN EXTRACT(Month FROM payment_date) = 2 THEN 'FEB'
+        WHEN EXTRACT(Month FROM payment_date) = 3 THEN 'MAR'
+        WHEN EXTRACT(Month FROM payment_date) = 4 THEN 'APR'
+        WHEN EXTRACT(Month FROM payment_date) = 5 THEN 'MAY'
+        WHEN EXTRACT(Month FROM payment_date) = 6 THEN 'JUN'
+        WHEN EXTRACT(Month FROM payment_date) = 7 THEN 'JUL'
+        WHEN EXTRACT(Month FROM payment_date) = 8 THEN 'AUG'
+        WHEN EXTRACT(Month FROM payment_date) = 9 THEN 'SEP'
+        WHEN EXTRACT(Month FROM payment_date) = 10 THEN 'OCT'
+        WHEN EXTRACT(Month FROM payment_date) = 11 THEN 'NOV'
+        WHEN EXTRACT(Month FROM payment_date) = 12 THEN 'DEC'
+        ELSE NULL
+        END AS Month_desc,
     SUM(p.amount) AS revenue
 FROM payment p
-GROUP BY 1,2;
+GROUP BY 1,2
+ORDER BY 4 DESC;
