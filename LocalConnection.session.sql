@@ -57,3 +57,13 @@ GROUP BY r.customer_id,
     c.first_name,
     c.last_name
 ORDER BY no_of_times_rented DESC;
+
+
+
+/* No of times a film is rented */
+SELECT i.film_id, COUNT(i.film_id) AS no_of_times_rented
+FROM inventory i
+    INNER JOIN rental r
+        ON i.inventory_id = r.inventory_id
+GROUP BY i.film_id
+ORDER BY no_of_times_rented DESC;
