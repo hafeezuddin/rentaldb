@@ -33,3 +33,7 @@ SELECT (
 /* List all distinct names from the category table */
 SELECT DISTINCT name
 FROM category;
+
+
+/*Retrieve Full name from customer table*/
+SELECT CONCAT(first_name,' ',last_name) AS full_name FROM customer;
