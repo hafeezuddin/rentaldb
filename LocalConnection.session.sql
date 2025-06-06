@@ -173,3 +173,8 @@ SELECT EXTRACT(YEAR from p.payment_date) AS year,
 FROM payment p
 GROUP BY 1,2
 ORDER BY 4 DESC;
+
+
+SELECT * 
+FROM inventory i
+LIMIT 5;
