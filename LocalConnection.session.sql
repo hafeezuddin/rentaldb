@@ -37,3 +37,10 @@ FROM category;
 
 /*Retrieve Full name from customer table*/
 SELECT CONCAT(first_name,' ',last_name) AS full_name FROM customer;
+
+
+/* List customers who have rented films atleast once */
+SELECT DISTINCT r.customer_id, c.first_name, c.last_name
+FROM rental r
+INNER JOIN customer c ON r.customer_id = c.customer_id
+ORDER BY customer_id;
