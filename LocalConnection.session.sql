@@ -28,3 +28,8 @@ SELECT (
         SELECT COUNT(DISTINCT rental_date)
         FROM rental
     ) AS total_rentals;
+
+
+/* List all distinct names from the category table */
+SELECT DISTINCT name
+FROM category;
