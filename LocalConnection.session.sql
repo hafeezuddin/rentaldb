@@ -47,11 +47,13 @@ ORDER BY customer_id;
 
 
 /* No of times each customer has rented */
-SELECT r.customer_id, 
-    c.first_name, 
+SELECT r.customer_id,
+    c.first_name,
     c.last_name,
     COUNT(r.customer_id) AS no_of_times_rented
 FROM rental r
-INNER JOIN customer c ON r.customer_id = c.customer_id
-GROUP BY r.customer_id, c.first_name, c.last_name
+    INNER JOIN customer c ON r.customer_id = c.customer_id
+GROUP BY r.customer_id,
+    c.first_name,
+    c.last_name
 ORDER BY no_of_times_rented DESC;
