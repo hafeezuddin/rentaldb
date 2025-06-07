@@ -207,3 +207,14 @@ INNER JOIN rental r ON i.inventory_id = r.inventory_id
 WHERE r.return_date IS NOT NULL
 GROUP BY f.film_id, f.title
 ORDER BY 3 DESC;
+
+
+/* Top salesperson */
+SELECT r.staff_id, 
+    s.email,
+    COUNT(rental_id) no_of_rentals
+FROM rental r
+INNER JOIN staff s ON r.staff_id = s.staff_id
+GROUP BY 1,2
+ORDER BY 2 DESC;
+
