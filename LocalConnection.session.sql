@@ -195,3 +195,15 @@ FROM customer c
 LEFT JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.customer_id IS NULL
 LIMIT 5;
+
+
+/* Average rental duration per movie */
+SELECT f.film_id, 
+    f.title,
+    AVG(r.return_date - r.rental_date) AS average_rental
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+WHERE r.return_date IS NOT NULL
+GROUP BY f.film_id, f.title
+ORDER BY 3 DESC;
