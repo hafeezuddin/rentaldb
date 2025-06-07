@@ -175,6 +175,12 @@ GROUP BY 1,2
 ORDER BY 4 DESC;
 
 
-SELECT * 
-FROM inventory i
+/* Top 5 Customers who spent the most money */
+SELECT c.customer_id, 
+    CONCAT(c.first_name,' ', c.last_name),
+    SUM(p.amount) AS total_spend
+FROM customer c
+    INNER JOIN payment p ON c.customer_id = p.customer_id
+GROUP BY 1,2
+ORDER BY 3 DESC
 LIMIT 5;
