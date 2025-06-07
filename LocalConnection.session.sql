@@ -16,18 +16,9 @@ ORDER BY customer_id
 LIMIT 5;
 
 /* SELECT DISTINCT customers, films and rentals from db */
-SELECT (
-        SELECT COUNT(DISTINCT customer_id)
-        FROM customer
-    ) AS total_customers,
-    (
-        SELECT COUNT(DISTINCT film_id)
-        FROM film
-    ) AS total_films,
-    (
-        SELECT COUNT(DISTINCT rental_date)
-        FROM rental
-    ) AS total_rentals;
+SELECT (SELECT COUNT(DISTINCT c.customer_id) FROM customer c) AS total_customers,
+    (SELECT COUNT(DISTINCT f.film_id) FROM film f) AS total_films,
+    (SELECT COUNT(DISTINCT r.rental_date) FROM rental r) AS total_rentals;
 
 
 /* List all distinct names from the category table */
@@ -176,11 +167,12 @@ ORDER BY 4 DESC;
 
 
 /* Top 5 Customers who spent the most money */
-SELECT c.customer_id, 
-    CONCAT(c.first_name,' ', c.last_name),
+SELECT c.customer_id,
+    CONCAT(c.first_name, ' ', c.last_name),
     SUM(p.amount) AS total_spend
 FROM customer c
     INNER JOIN payment p ON c.customer_id = p.customer_id
-GROUP BY 1,2
+GROUP BY 1,
+    2
 ORDER BY 3 DESC
 LIMIT 5;
