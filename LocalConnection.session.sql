@@ -187,3 +187,11 @@ INNER JOIN rental r ON c.customer_id = r.customer_id
 GROUP BY 1,2
 ORDER BY 3 DESC
 LIMIT 5;
+
+
+/* Customers who have never rented a movie from store */
+SELECT c.customer_id
+FROM customer c
+LEFT JOIN rental r ON c.customer_id = r.customer_id
+WHERE r.customer_id IS NULL
+LIMIT 5;
