@@ -218,3 +218,18 @@ INNER JOIN staff s ON r.staff_id = s.staff_id
 GROUP BY 1,2
 ORDER BY 2 DESC;
 
+
+/* Top 10 customers who return movies late the most */
+SELECT r.customer_id, 
+    CONCAT(c.first_name, ' ', c.last_name),
+    c.email,
+    COUNT(*) AS no_of_late_returns
+FROM rental r
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+INNER JOIN customer c ON r.customer_id = c.customer_id
+WHERE (r.return_date::date - r.rental_date::date) > f.rental_duration
+AND r.return_date IS NOT NULL
+GROUP BY 1,2,3
+ORDER BY 4 DESC
+LIMIT 10;
