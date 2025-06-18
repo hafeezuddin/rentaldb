@@ -232,4 +232,20 @@ WHERE (r.return_date::date - r.rental_date::date) > f.rental_duration
 AND r.return_date IS NOT NULL
 GROUP BY 1,2,3
 ORDER BY 4 DESC
-LIMIT 10;
+LIMIT 10;  
+
+
+
+/* Identity rental trents per city and country */
+SELECT co.country, 
+    c.city, 
+    EXTRACT(YEAR FROM r.rental_date) AS rental_year,
+    EXTRACT(MONTH FROM r.rental_date) AS rental_month,
+    COUNT(*) AS total_rentals
+FROM city c
+    INNER JOIN country co ON c.country_id = co.country_id
+    INNER JOIN address a ON c.city_id = a.city_id
+    INNER JOIN customer cus ON a.address_id = cus.address_id
+    INNER JOIN rental r ON cus.customer_id = r.customer_id
+GROUP BY 1,2,3,4
+ORDER BY total_rentals DESC;
