@@ -263,3 +263,12 @@ INNER JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY 1
 ORDER BY total_revenue DESC;
 
+
+/* Customers who rented out but have'nt returned the DVD's */
+SELECT CONCAT(c.first_name, ' ', c.last_name),
+    c.email,
+    r.rental_date,
+    EXTRACT(DAYS FROM (CURRENT_DATE - r.rental_date)) AS rented_out_days
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+WHERE r.return_date IS NULL;
