@@ -288,3 +288,12 @@ SELECT p.customer_id,
 FROM payment p
 GROUP BY 1
 ORDER BY 2 DESC;
+
+
+
+/* Average revenue per customer as per rental history */
+SELECT AVG(total_revenue_per_customer) AS average_revenue_from_customer
+FROM (SELECT p.customer_id, 
+    SUM(p.amount) AS total_revenue_per_customer
+    FROM payment p
+    GROUP BY 1);
