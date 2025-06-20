@@ -125,8 +125,7 @@ SELECT EXTRACT(
         END AS Month_desc,
     COUNT(rental_id) AS no_of_rentals
 FROM rental
-GROUP BY 1,
-    2
+GROUP BY 1,2
 ORDER BY no_of_rentals DESC;
 
 
@@ -272,3 +271,20 @@ SELECT CONCAT(c.first_name, ' ', c.last_name),
 FROM customer c
 INNER JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.return_date IS NULL;
+
+
+/* Busiest hour of the day */
+SELECT EXTRACT(HOUR FROM rental_date) AS hour_of_day, 
+    COUNT(*) AS No_of_times_rented 
+FROM rental
+GROUP BY 1
+ORDER BY No_of_times_rented DESC
+LIMIT 10;
+
+
+/* LTV by each customer */
+SELECT p.customer_id, 
+    SUM(p.amount)
+FROM payment p
+GROUP BY 1
+ORDER BY 2 DESC;
