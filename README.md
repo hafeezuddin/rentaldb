@@ -1,1 +1,2 @@
 # rentaldb
+A comprehensive SQL analytics project exploring customer behavior, film rentals, revenue trends, and business insights using the classic DVD Rental dataset. Queries are organized into schema exploration, customer insights, film & rental analytics, and revenue trends. This project demonstrates advanced SQL skills including joins, subqueries, aggregations, and date functions to extract actionable business intelligence.
