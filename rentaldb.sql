@@ -76,7 +76,7 @@ GROUP BY p.customer_id
 ORDER BY total_ltv DESC;
 
 -- Average revenue per customer
-SELECT AVG(total_revenue_per_customer) AS average_revenue_from_customer
+SELECT CONCAT(ROUND(AVG(total_revenue_per_customer),2),'$') AS average_revenue_from_customer
 FROM (
     SELECT p.customer_id, SUM(p.amount) AS total_revenue_per_customer
     FROM payment p
@@ -105,7 +105,7 @@ ORDER BY rental_count DESC;
 
 -- Rental duration per film
 SELECT f.film_id, f.title,
-       AVG(r.return_date - r.rental_date) AS average_rental
+       EXTRACT(DAY FROM (AVG(r.return_date - r.rental_date))) AS average_rental
 FROM film f
 INNER JOIN inventory i ON f.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
@@ -152,17 +152,17 @@ LIMIT 10;
 -- =====================================
 
 -- Total revenue from rentals
-SELECT SUM(p.amount) AS total_revenue FROM payment p;
+SELECT CONCAT(SUM(p.amount),'$') AS total_revenue FROM payment p;
 
 -- Yearly revenue
-SELECT EXTRACT(YEAR FROM p.payment_date) AS year, SUM(p.amount) AS revenue
+SELECT EXTRACT(YEAR FROM p.payment_date) AS year, CONCAT(SUM(p.amount),'$') AS revenue
 FROM payment p
 GROUP BY year
 ORDER BY year;
 
 -- Monthly revenue with labels
 SELECT EXTRACT(YEAR FROM p.payment_date) AS year,
-       TO_CHAR(p.payment_date, 'Mon') AS month,
+       TO_CHAR(p.payment_date, 'month') AS month,
        SUM(p.amount) AS revenue
 FROM payment p
 GROUP BY year, month
@@ -198,11 +198,12 @@ ORDER BY total_rentals DESC;
 
 -- Profitable categories
 SELECT c.name, COUNT(r.rental_id) AS total_rentals,
-       SUM(p.amount) AS total_revenue
+       SUM(p.amount) AS total_revenue,
+       ROUND(SUM(p.amount)/COUNT(r.rental_id),2) AS Avg_revenue_per_rental
 FROM category c
 INNER JOIN film_category fc ON c.category_id = fc.category_id
 INNER JOIN inventory i ON fc.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
 INNER JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY c.name
-ORDER BY total_revenue DESC;
+ORDER BY Avg_revenue_per_rental DESC;
