@@ -1,5 +1,5 @@
 -- =====================================
--- SECTION 1: Schema Exploration
+-- SECTION 1: Database Schema Exploration
 -- =====================================
 
 -- List all tables in the public schema
@@ -13,13 +13,13 @@ FROM information_schema.columns
 WHERE table_name = 'address' AND table_schema = 'public';
 
 -- =====================================
--- SECTION 2: Customer Insights
+-- SECTION 2: Basic Table Contents
 -- =====================================
 
 -- Sample 5 customer records
 SELECT * FROM customer ORDER BY customer_id LIMIT 5;
 
--- Total customers, films, and rental dates
+-- Total counts of key entities
 SELECT 
   (SELECT COUNT(DISTINCT customer_id) FROM customer) AS total_customers,
   (SELECT COUNT(DISTINCT film_id) FROM film) AS total_films,
@@ -28,7 +28,41 @@ SELECT
 -- Distinct category names
 SELECT DISTINCT name FROM category;
 
--- Retrieve full names of customers
+-- =====================================
+-- SECTION 3: Film Information
+-- =====================================
+
+-- Title and Language of films
+SELECT f.title, l.name
+FROM film f
+INNER JOIN language l ON f.language_id = l.language_id;
+
+-- Films not in Inventory
+SELECT f.film_id
+FROM film f
+LEFT JOIN inventory i ON f.film_id = i.film_id
+WHERE i.inventory_id IS NULL;
+
+-- Category-wise film counts
+SELECT c.name, COUNT(*) AS total_films
+FROM category c 
+INNER JOIN film_category fc ON c.category_id = fc.category_id
+INNER JOIN film f ON fc.film_id = f.film_id
+GROUP BY c.name
+ORDER BY total_films DESC;
+
+-- Categories with fewer than 5 films
+SELECT c.name, COUNT(*) AS total_films
+FROM category c
+INNER JOIN film_category fc ON c.category_id = fc.category_id
+GROUP BY c.name
+HAVING COUNT(*) < 5;
+
+-- =====================================
+-- SECTION 4: Customer Information
+-- =====================================
+
+-- Customer full names
 SELECT CONCAT(first_name,' ',last_name) AS full_name FROM customer;
 
 -- Customers who have rented at least once
@@ -37,21 +71,23 @@ FROM rental r
 INNER JOIN customer c ON r.customer_id = c.customer_id
 ORDER BY customer_id;
 
+-- Customers who have never rented
+SELECT c.customer_id
+FROM customer c
+LEFT JOIN rental r ON c.customer_id = r.customer_id
+WHERE r.customer_id IS NULL
+LIMIT 5;
+
+-- =====================================
+-- SECTION 5: Rental Analytics
+-- =====================================
+
 -- Rental count per customer
 SELECT r.customer_id, c.first_name, c.last_name, COUNT(*) AS no_of_times_rented
 FROM rental r
 INNER JOIN customer c ON r.customer_id = c.customer_id
 GROUP BY r.customer_id, c.first_name, c.last_name
 ORDER BY no_of_times_rented DESC;
-
--- Top 5 customers by spend
-SELECT c.customer_id, CONCAT(c.first_name, ' ', c.last_name) AS full_name,
-       SUM(p.amount) AS total_spend
-FROM customer c
-INNER JOIN payment p ON c.customer_id = p.customer_id
-GROUP BY c.customer_id, full_name
-ORDER BY total_spend DESC
-LIMIT 5;
 
 -- Top 5 customers by rentals
 SELECT c.customer_id, CONCAT(c.first_name, ' ', c.last_name) AS full_name,
@@ -62,14 +98,45 @@ GROUP BY c.customer_id, full_name
 ORDER BY total_rentals DESC
 LIMIT 5;
 
--- Customers who have never rented
-SELECT c.customer_id
+-- Rentals per film
+SELECT i.film_id, COUNT(*) AS no_of_times_rented
+FROM inventory i
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY i.film_id
+ORDER BY no_of_times_rented DESC;
+
+-- Rental duration per film
+SELECT f.film_id, f.title,
+       EXTRACT(DAY FROM (AVG(r.return_date - r.rental_date))) AS average_rental
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+WHERE r.return_date IS NOT NULL
+GROUP BY f.film_id, f.title
+ORDER BY average_rental DESC;
+
+-- Busiest hour of the day
+SELECT EXTRACT(HOUR FROM rental_date) AS hour_of_day,
+       COUNT(*) AS No_of_times_rented
+FROM rental
+GROUP BY hour_of_day
+ORDER BY No_of_times_rented DESC
+LIMIT 10;
+
+-- =====================================
+-- SECTION 6: Financial Analysis
+-- =====================================
+
+-- Top 5 customers by spend
+SELECT c.customer_id, CONCAT(c.first_name, ' ', c.last_name) AS full_name,
+       SUM(p.amount) AS total_spend
 FROM customer c
-LEFT JOIN rental r ON c.customer_id = r.customer_id
-WHERE r.customer_id IS NULL
+INNER JOIN payment p ON c.customer_id = p.customer_id
+GROUP BY c.customer_id, full_name
+ORDER BY total_spend DESC
 LIMIT 5;
 
--- LTV per customer
+-- Customer Lifetime Value (LTV)
 SELECT p.customer_id, SUM(p.amount) AS total_ltv
 FROM payment p
 GROUP BY p.customer_id
@@ -83,16 +150,50 @@ FROM (
     GROUP BY p.customer_id
 ) AS customer_revenue;
 
+-- Total revenue from rentals
+SELECT CONCAT(SUM(p.amount),'$') AS total_revenue FROM payment p;
+
+-- Yearly revenue
+SELECT EXTRACT(YEAR FROM p.payment_date) AS year, CONCAT(SUM(p.amount),'$') AS revenue
+FROM payment p
+GROUP BY year
+ORDER BY year;
+
+-- Monthly revenue with labels
+SELECT EXTRACT(YEAR FROM p.payment_date) AS year,
+       TO_CHAR(p.payment_date, 'month') AS month,
+       SUM(p.amount) AS revenue
+FROM payment p
+GROUP BY year, month
+ORDER BY year, month;
+
 -- =====================================
--- SECTION 3: Film & Rental Analytics
+-- SECTION 7: Geographic Analysis
 -- =====================================
 
--- Rentals per film
-SELECT i.film_id, COUNT(*) AS no_of_times_rented
-FROM inventory i
-INNER JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY i.film_id
-ORDER BY no_of_times_rented DESC;
+-- Stores and their locations
+SELECT s.store_id, c.city, co.country
+FROM store s
+INNER JOIN address a ON s.address_id = a.address_id
+INNER JOIN city c ON a.city_id = c.city_id
+INNER JOIN country co ON c.country_id = co.country_id;
+
+-- Rental trends by country/city
+SELECT co.country, c.city,
+       EXTRACT(YEAR FROM r.rental_date) AS rental_year,
+       EXTRACT(MONTH FROM r.rental_date) AS rental_month,
+       COUNT(*) AS total_rentals
+FROM city c
+INNER JOIN country co ON c.country_id = co.country_id
+INNER JOIN address a ON c.city_id = a.city_id
+INNER JOIN customer cus ON a.address_id = cus.address_id
+INNER JOIN rental r ON cus.customer_id = r.customer_id
+GROUP BY co.country, c.city, rental_year, rental_month
+ORDER BY total_rentals DESC;
+
+-- =====================================
+-- SECTION 8: Category Analysis
+-- =====================================
 
 -- Rentals per category
 SELECT c.category_id, c.name, COUNT(r.rental_id) AS rental_count
@@ -103,15 +204,21 @@ INNER JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY c.category_id, c.name
 ORDER BY rental_count DESC;
 
--- Rental duration per film
-SELECT f.film_id, f.title,
-       EXTRACT(DAY FROM (AVG(r.return_date - r.rental_date))) AS average_rental
-FROM film f
-INNER JOIN inventory i ON f.film_id = i.film_id
+-- Profitable categories
+SELECT c.name, COUNT(r.rental_id) AS total_rentals,
+       SUM(p.amount) AS total_revenue,
+       ROUND(SUM(p.amount)/COUNT(r.rental_id),2) AS Avg_revenue_per_rental
+FROM category c
+INNER JOIN film_category fc ON c.category_id = fc.category_id
+INNER JOIN inventory i ON fc.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
-WHERE r.return_date IS NOT NULL
-GROUP BY f.film_id, f.title
-ORDER BY average_rental DESC;
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY c.name
+ORDER BY Avg_revenue_per_rental DESC;
+
+-- =====================================
+-- SECTION 9: Staff Performance
+-- =====================================
 
 -- Top salesperson by rentals
 SELECT r.staff_id, s.email, COUNT(*) AS no_of_rentals
@@ -119,6 +226,10 @@ FROM rental r
 INNER JOIN staff s ON r.staff_id = s.staff_id
 GROUP BY r.staff_id, s.email
 ORDER BY no_of_rentals DESC;
+
+-- =====================================
+-- SECTION 10: Late Returns & Issues
+-- =====================================
 
 -- Top 10 late returns
 SELECT r.customer_id, CONCAT(c.first_name, ' ', c.last_name) AS full_name,
@@ -139,34 +250,9 @@ FROM customer c
 INNER JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.return_date IS NULL;
 
--- Busiest hour of the day
-SELECT EXTRACT(HOUR FROM rental_date) AS hour_of_day,
-       COUNT(*) AS No_of_times_rented
-FROM rental
-GROUP BY hour_of_day
-ORDER BY No_of_times_rented DESC
-LIMIT 10;
-
 -- =====================================
--- SECTION 4: Revenue & Trends
+-- SECTION 11: Temporal Trends
 -- =====================================
-
--- Total revenue from rentals
-SELECT CONCAT(SUM(p.amount),'$') AS total_revenue FROM payment p;
-
--- Yearly revenue
-SELECT EXTRACT(YEAR FROM p.payment_date) AS year, CONCAT(SUM(p.amount),'$') AS revenue
-FROM payment p
-GROUP BY year
-ORDER BY year;
-
--- Monthly revenue with labels
-SELECT EXTRACT(YEAR FROM p.payment_date) AS year,
-       TO_CHAR(p.payment_date, 'month') AS month,
-       SUM(p.amount) AS revenue
-FROM payment p
-GROUP BY year, month
-ORDER BY year, month;
 
 -- Rental trends by month
 SELECT TO_CHAR(rental_date, 'Mon') AS month,
@@ -182,28 +268,3 @@ SELECT EXTRACT(YEAR FROM rental_date) AS year,
 FROM rental
 GROUP BY year, month
 ORDER BY no_of_rentals DESC;
-
--- Rental trends by country/city
-SELECT co.country, c.city,
-       EXTRACT(YEAR FROM r.rental_date) AS rental_year,
-       EXTRACT(MONTH FROM r.rental_date) AS rental_month,
-       COUNT(*) AS total_rentals
-FROM city c
-INNER JOIN country co ON c.country_id = co.country_id
-INNER JOIN address a ON c.city_id = a.city_id
-INNER JOIN customer cus ON a.address_id = cus.address_id
-INNER JOIN rental r ON cus.customer_id = r.customer_id
-GROUP BY co.country, c.city, rental_year, rental_month
-ORDER BY total_rentals DESC;
-
--- Profitable categories
-SELECT c.name, COUNT(r.rental_id) AS total_rentals,
-       SUM(p.amount) AS total_revenue,
-       ROUND(SUM(p.amount)/COUNT(r.rental_id),2) AS Avg_revenue_per_rental
-FROM category c
-INNER JOIN film_category fc ON c.category_id = fc.category_id
-INNER JOIN inventory i ON fc.film_id = i.film_id
-INNER JOIN rental r ON i.inventory_id = r.inventory_id
-INNER JOIN payment p ON r.rental_id = p.rental_id
-GROUP BY c.name
-ORDER BY Avg_revenue_per_rental DESC;
