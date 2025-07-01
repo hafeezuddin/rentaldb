@@ -191,6 +191,16 @@ INNER JOIN rental r ON cus.customer_id = r.customer_id
 GROUP BY co.country, c.city, rental_year, rental_month
 ORDER BY total_rentals DESC;
 
+
+--Customers rented from Multiple Stores
+SELECT r.customer_id, c.first_name
+FROM rental r
+INNER JOIN customer c ON r.customer_id = c.customer_id
+WHERE r.staff_id IN (1,2)
+GROUP BY 1,2
+HAVING COUNT(Distinct r.staff_id) =2;
+
+
 -- =====================================
 -- SECTION 8: Category Analysis
 -- =====================================
@@ -268,3 +278,4 @@ SELECT EXTRACT(YEAR FROM rental_date) AS year,
 FROM rental
 GROUP BY year, month
 ORDER BY no_of_rentals DESC;
+
