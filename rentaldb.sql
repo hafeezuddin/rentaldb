@@ -279,3 +279,14 @@ FROM rental
 GROUP BY year, month
 ORDER BY no_of_rentals DESC;
 
+--Category Popularity by Year
+SELECT TO_CHAR(rental_date, 'YYYY') AS Year,
+  TO_CHAR(rental_date, 'MM') AS Month,
+  c.name,
+  COUNT(*)
+FROM category c
+INNER JOIN film_category fc ON c.category_id = fc.category_id
+INNER JOIN Inventory i ON fc.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY 1,2,3
+ORDER BY COUNT(*) DESC;
