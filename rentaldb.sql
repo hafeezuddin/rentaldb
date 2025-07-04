@@ -28,6 +28,13 @@ SELECT
 -- Distinct category names
 SELECT DISTINCT name FROM category;
 
+-- Customers from Specific City
+SELECT CONCAT(first_name,' ', last_name)
+FROM customer cus
+INNER JOIN address a ON cus.address_id = a.address_id
+INNER JOIN city c ON a.city_id = c.city_id
+WHERE c.city = 'London';
+
 -- =====================================
 -- SECTION 3: Film Information
 -- =====================================
