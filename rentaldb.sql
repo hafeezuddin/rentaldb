@@ -65,6 +65,17 @@ INNER JOIN film_category fc ON c.category_id = fc.category_id
 GROUP BY c.name
 HAVING COUNT(*) < 5;
 
+--Rentals per film rating (Count how many films were made in eact rating category)
+SELECT f.rating,
+  COUNT(*) AS no_of_films
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY 1
+ORDER BY COUNT(*) DESC;
+
+
+
 -- =====================================
 -- SECTION 4: Customer Information
 -- =====================================
