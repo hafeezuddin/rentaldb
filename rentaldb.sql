@@ -283,10 +283,14 @@ WHERE r.return_date IS NULL;
 -- =====================================
 
 -- Rental trends by month
-SELECT TO_CHAR(rental_date, 'Mon') AS month,
-       COUNT(*) AS no_of_rentals
+SELECT TO_CHAR(rental_date, 'MON') AS month,
+    EXTRACT(
+        YEAR
+        from rental_date
+    ) AS year,
+    COUNT(*) AS no_of_rentals
 FROM rental
-GROUP BY month
+GROUP BY 1,2
 ORDER BY no_of_rentals DESC;
 
 -- Rental trends by year & month
