@@ -312,3 +312,16 @@ INNER JOIN Inventory i ON fc.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY 1,2,3
 ORDER BY COUNT(*) DESC;
+
+
+-- Top 10 cities with top revenue
+SELECT c.city, 
+  EXTRACT(YEAR from payment_date) AS Year,
+  SUM(p.amount) AS total_revenue
+FROM city c
+INNER JOIN address a ON c.city_id = a.city_id
+INNER JOIN customer ct ON a.address_id = ct.address_id
+INNER JOIN payment p ON ct.customer_id = p.customer_id
+GROUP BY 1,2
+ORDER BY sum(p.amount) DESC
+LIMIT 10;
