@@ -328,28 +328,32 @@ LIMIT 10;
 
 
 --Top Rented films in each catergory and Number of times they were rented.
-WITH film_rentals AS (
-  SELECT
-    c.name AS category,
-    f.title AS filmtitle,
-    COUNT(*) AS rental_count
-  FROM film f
-  JOIN inventory i ON f.film_id = i.film_id
-  JOIN rental r ON i.inventory_id = r.inventory_id
-  JOIN film_category fc ON f.film_id = fc.film_id
-  JOIN category c ON fc.category_id = c.category_id
-  GROUP BY 1,2
+WITH filmrentals AS
+(
+  SELECT f.title AS filmtitle, 
+  c.name AS category,
+  COUNT(*) AS times_rented
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+INNER JOIN film_category fc ON f.film_id = fc.film_id
+INNER JOIN category c ON fc.category_id = c.category_id
+GROUP BY 1,2
+ORDER BY times_rented DESC
 ),
-max_rentals AS (
-  SELECT
-    category,
-    MAX(rental_count) AS max_rentals
-  FROM film_rentals
-  GROUP BY category
+maxrentals AS
+(
+  SELECT category, 
+  MAX(times_rented) AS rentalcount
+FROM filmrentals
+GROUP BY category
 )
-SELECT fr.category, fr.filmtitle, fr.rental_count
-FROM film_rentals fr
-JOIN max_rentals mr
-  ON fr.category = mr.category
-  AND fr.rental_count = mr.max_rentals;
+SELECT fr.category, 
+fr.filmtitle, 
+mr.rentalcount
+FROM filmrentals fr
+INNER JOIN maxrentals mr ON fr.category = mr.category
+AND fr.times_rented = mr.rentalcount;
+
+
 
