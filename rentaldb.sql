@@ -325,3 +325,31 @@ INNER JOIN payment p ON ct.customer_id = p.customer_id
 GROUP BY 1,2
 ORDER BY sum(p.amount) DESC
 LIMIT 10;
+
+
+--Top Rented films in each catergory and Number of times they were rented.
+WITH film_rentals AS (
+  SELECT
+    c.name AS category,
+    f.title,
+    COUNT(*) AS rental_count
+  FROM film f
+  JOIN inventory i ON f.film_id = i.film_id
+  JOIN rental r ON i.inventory_id = r.inventory_id
+  JOIN film_category fc ON f.film_id = fc.film_id
+  JOIN category c ON fc.category_id = c.category_id
+  GROUP BY c.name, f.titles
+),
+max_rentals AS (
+  SELECT
+    category,
+    MAX(rental_count) AS max_rentals
+  FROM film_rentals
+  GROUP BY category
+)
+SELECT fr.category, fr.title, fr.rental_count
+FROM film_rentals fr
+JOIN max_rentals mr
+  ON fr.category = mr.category
+  AND fr.rental_count = mr.max_rentals;
+
