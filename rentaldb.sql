@@ -354,6 +354,3 @@ mr.rentalcount
 FROM filmrentals fr
 INNER JOIN maxrentals mr ON fr.category = mr.category
 AND fr.times_rented = mr.rentalcount;
-
-
-
