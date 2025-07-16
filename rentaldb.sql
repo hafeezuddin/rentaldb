@@ -348,9 +348,39 @@ maxrentals AS
 FROM filmrentals
 GROUP BY category
 )
+
 SELECT fr.category, 
 fr.filmtitle, 
 mr.rentalcount
 FROM filmrentals fr
 INNER JOIN maxrentals mr ON fr.category = mr.category
 AND fr.times_rented = mr.rentalcount;
+
+
+--Find customers who rented the most expensive movie (Sub-query)
+SELECT f.film_id, 
+  f.title, 
+  f.rental_rate, 
+  c.first_name, 
+  c.last_name
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+INNER JOIN customer c ON r.customer_id = c.customer_id
+WHERE f.rental_rate = (SELECT max(rental_rate) FROM film);
+
+--Find customers who rented the most expensive movie (CTE)
+WITH maxrental AS (
+  SELECT f.film_id,
+    f.title,
+    f.rental_rate
+    FROM film f WHERE rental_rate = (SELECT max(f.rental_rate) FROM film f)
+)
+SELECT mr.film_id, 
+  mr.title, 
+  mr.rental_rate,
+  c.email
+  FROM maxrental mr
+INNER JOIN inventory i ON mr.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+INNER JOIN customer c ON r.customer_id = c.customer_id;
