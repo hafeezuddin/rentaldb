@@ -383,4 +383,35 @@ SELECT mr.film_id,
   FROM maxrental mr
 INNER JOIN inventory i ON mr.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
-INNER JOIN customer c ON r.customer_id = c.customer_id;
+INNER JOIN customer c ON r.customer_id = c.customer_id
+ORDER BY film_id;
+
+--Films that have a rental rate higher than the average rental rate (Premium Films).
+SELECT f.film_id,
+f.title,
+f.rental_rate
+FROM film f
+WHERE rental_rate > (SELECT avg(rental_rate) FROM film)
+ORDER BY f.rental_rate DESC;
+
+--Customers who have spent more than the average total rental amount across all customers ()
+
+WITH total_spend AS (
+  SELECT p.customer_id,
+SUM(p.amount) as total_customer_spend
+FROM payment p
+GROUP BY p.customer_id
+),
+avg_spend AS (
+  SELECT 
+ AVG(total_customer_spend) as average_customer_spend
+  FROM total_spend
+)
+SELECT ts.customer_id 
+FROM total_spend ts
+CROSS JOIN avg_spend
+WHERE ts.total_customer_spend > avg_spend.average_customer_spend
+ORDER BY ts.customer_id;
+
+
+
