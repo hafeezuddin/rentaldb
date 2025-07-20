@@ -326,92 +326,73 @@ GROUP BY 1,2
 ORDER BY sum(p.amount) DESC
 LIMIT 10;
 
-
---Top Rented films in each catergory and Number of times they were rented.
-WITH filmrentals AS
-(
-  SELECT f.title AS filmtitle, 
-  c.name AS category,
-  COUNT(*) AS times_rented
-FROM film f
-INNER JOIN inventory i ON f.film_id = i.film_id
-INNER JOIN rental r ON i.inventory_id = r.inventory_id
-INNER JOIN film_category fc ON f.film_id = fc.film_id
-INNER JOIN category c ON fc.category_id = c.category_id
-GROUP BY 1,2
-ORDER BY times_rented DESC
-),
-maxrentals AS
-(
-  SELECT category, 
-  MAX(times_rented) AS rentalcount
-FROM filmrentals
-GROUP BY category
-)
-
-SELECT fr.category, 
-fr.filmtitle, 
-mr.rentalcount
-FROM filmrentals fr
-INNER JOIN maxrentals mr ON fr.category = mr.category
-AND fr.times_rented = mr.rentalcount;
-
-
---Find customers who rented the most expensive movie (Sub-query)
-SELECT f.film_id, 
-  f.title, 
-  f.rental_rate, 
-  c.first_name, 
-  c.last_name
-FROM film f
-INNER JOIN inventory i ON f.film_id = i.film_id
-INNER JOIN rental r ON i.inventory_id = r.inventory_id
-INNER JOIN customer c ON r.customer_id = c.customer_id
-WHERE f.rental_rate = (SELECT max(rental_rate) FROM film);
-
---Find customers who rented the most expensive movie (CTE)
-WITH maxrental AS (
-  SELECT f.film_id,
-    f.title,
-    f.rental_rate
-    FROM film f WHERE rental_rate = (SELECT max(f.rental_rate) FROM film f)
-)
-SELECT mr.film_id, 
-  mr.title, 
-  mr.rental_rate,
-  c.email
-  FROM maxrental mr
-INNER JOIN inventory i ON mr.film_id = i.film_id
-INNER JOIN rental r ON i.inventory_id = r.inventory_id
-INNER JOIN customer c ON r.customer_id = c.customer_id
-ORDER BY film_id;
-
---Films that have a rental rate higher than the average rental rate (Premium Films).
-SELECT f.film_id,
-f.title,
-f.rental_rate
-FROM film f
-WHERE rental_rate > (SELECT avg(rental_rate) FROM film)
-ORDER BY f.rental_rate DESC;
-
---Customers who have spent more than the average total rental amount across all customers ()
-
-WITH total_spend AS (
-  SELECT p.customer_id,
-SUM(p.amount) as total_customer_spend
+--Find Customers who spent more than the average payment Amount
+SELECT DISTINCT p.customer_id
 FROM payment p
-GROUP BY p.customer_id
+WHERE p.amount > (SELECT AVG(p.amount) FROM payment p)
+ORDER BY p.customer_id;
+
+--Using CTE
+WITH customer_spend AS (
+  SELECT p.customer_id, p.amount AS spend_amount
+    FROM payment p
 ),
 avg_spend AS (
-  SELECT 
- AVG(total_customer_spend) as average_customer_spend
-  FROM total_spend
+  SELECT AVG(spend_amount) AS avg_cus_spend
+  FROM customer_spend
 )
-SELECT ts.customer_id 
-FROM total_spend ts
+SELECT DISTINCT cs.customer_id
+FROM customer_spend AS cs
 CROSS JOIN avg_spend
-WHERE ts.total_customer_spend > avg_spend.average_customer_spend
-ORDER BY ts.customer_id;
+WHERE cs.spend_amount > avg_cus_spend
+ORDER BY cs.customer_id;
 
 
+--Top Rented films in each catergory and Number of times they were rented.
+WITH film_rental_count AS (
+SELECT f.film_id, f.title, c.name, COUNT(*) AS rental_count FROM film f
+INNER JOIN film_category fc ON f.film_id = fc.film_id
+INNER JOIN inventory i ON fc.film_id = i.film_id
+INNER JOIN category c ON fc.category_id = c.category_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY 1,2,3
+ORDER BY film_id
+),
+category_top AS (
+  SELECT frc.name, MAX(frc.rental_count) AS cat_top_count
+  FROM film_rental_count frc
+  GROUP BY 1
+)
+SELECT frc.film_id, frc.title, frc.name
+FROM film_rental_count frc
+INNER JOIN category_top ct ON  frc.name = ct.name
+WHERE frc.rental_count = ct.cat_top_count;
 
+--Find customers who rented the most expensive movie (CTE)
+WITH expensive_films AS (
+  SELECT
+  MAX(rental_rate) AS exp_rate
+  FROM film f
+),
+cs_data AS (
+ SELECT c.customer_id, i.film_id, fl.rental_rate FROM customer c
+  INNER JOIN rental r ON c.customer_id =r.customer_id
+  INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+  INNER JOIN film fl ON i.film_id = fl.film_id
+)
+
+SELECT cs_data.customer_id, cs_data.rental_rate, cs_data.film_id
+FROM cs_data
+CROSS JOIN expensive_films
+WHERE cs_data.rental_rate = expensive_films.exp_rate;
+
+
+--Find customers who rented the most expensive movie (CTE)
+
+
+--Films that have a rental rate higher than the average rental rate (Premium Films).
+
+
+--Customers who have spent more than the average total rental amount across all customers
+
+ 
