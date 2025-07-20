@@ -386,6 +386,31 @@ FROM cs_data
 CROSS JOIN expensive_films
 WHERE cs_data.rental_rate = expensive_films.exp_rate;
 
+--V.2
+WITH expensive_films AS (
+  SELECT
+  MAX(rental_rate) AS exp_rate
+  FROM film f
+)
+SELECT c.customer_id, f.film_id, f.rental_rate FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id =i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+INNER JOIN expensive_films ON f.rental_rate = expensive_films.exp_rate
+ORDER BY c.customer_id;
+
+--V.3 (DISTINCT CUSTOMERS WHO RENTED EXPENSIVE FILMS)
+WITH expensive_films AS (
+  SELECT
+  MAX(rental_rate) AS exp_rate
+  FROM film f
+)
+SELECT DISTINCT c.customer_id FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id =i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+INNER JOIN expensive_films ON f.rental_rate = expensive_films.exp_rate
+ORDER BY c.customer_id;
 
 --Find customers who rented the most expensive movie (CTE)
 
