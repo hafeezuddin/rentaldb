@@ -160,13 +160,51 @@ FROM payment p
 GROUP BY p.customer_id
 ORDER BY total_ltv DESC;
 
--- Average revenue per customer
+-- Average revenue per customer with Sub-query
 SELECT CONCAT(ROUND(AVG(total_revenue_per_customer),2),'$') AS average_revenue_from_customer
 FROM (
     SELECT p.customer_id, SUM(p.amount) AS total_revenue_per_customer
     FROM payment p
     GROUP BY p.customer_id
 ) AS customer_revenue;
+
+--Average Revenue per customer With CTE
+WITH total_revenue_per_customer AS (
+  SELECT p.customer_id, SUM(p.amount) AS total_revenue_per_customer
+    FROM payment p
+    GROUP BY p.customer_id
+)
+SELECT AVG(total_revenue_per_customer) as avg_revenue_per_customer 
+FROM total_revenue_per_customer;
+
+
+--Customers who spend more than average.
+WITH total_revenue_per_customer AS (
+  SELECT p.customer_id, SUM(p.amount) AS customer_revenue
+    FROM payment p
+    GROUP BY p.customer_id
+)
+SELECT trpc.customer_id, trpc.customer_revenue
+FROM total_revenue_per_customer AS trpc
+WHERE trpc.customer_revenue > (SELECT AVG(trps.customer_revenue) FROM total_revenue_per_customer trps)
+ORDER BY 1;
+
+--Customers who spend more than average without Sub-Query
+WITH total_revenue_per_customer AS (
+  SELECT p.customer_id, SUM(p.amount) AS customer_revenue
+    FROM payment p
+    GROUP BY p.customer_id
+),
+avg_revenue AS (
+  SELECT AVG(customer_revenue) AS avg_cus_revenue
+  FROM total_revenue_per_customer
+
+)
+SELECT trpc.customer_id, trpc.customer_revenue
+FROM total_revenue_per_customer trpc
+CROSS JOIN avg_revenue ar
+WHERE trpc.customer_revenue > ar.avg_cus_revenue
+ORDER BY trpc.customer_id;
 
 -- Total revenue from rentals
 SELECT CONCAT(SUM(p.amount),'$') AS total_revenue FROM payment p;
