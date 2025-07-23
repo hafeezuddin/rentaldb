@@ -433,23 +433,20 @@ JOIN category_max cm ON fr.category = cm.category AND fr.rental_count = cm.max_r
 ORDER BY fr.category;
 
 --Find customers who rented the most expensive movie (CTE)
-WITH expensive_movie AS 
-(
-  SELECT MAX(f.rental_rate) AS rate
+WITH expensive_movie AS (
+  SELECT MAX(f.rental_rate) AS max_rate
   FROM film f
 )
-SELECT DISTINCT p.customer_id, c.first_name, c.last_name FROM payment p
-INNER JOIN expensive_movie em ON p.amount = em.rate
-INNER JOIN customer c ON p.customer_id = c.customer_id
-WHERE p.amount = em.rate
-ORDER BY p.customer_id;
-
+SELECT DISTINCT c.customer_id, c.first_name, c.last_name
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+INNER JOIN expensive_movie em ON f.rental_rate =  em.max_rate
+ORDER BY c.customer_id;
 
 --Subquery Version of Find customers who rented the most expensive movie (CTE)
-SELECT DISTINCT p.customer_id, c.first_name, c.last_name FROM payment p
-INNER JOIN customer c ON p.customer_id = c.customer_id
-WHERE p.amount = (SELECT MAX(rental_rate) FROM film f)
-ORDER BY p.customer_id;
+
 
 
 --Films that have a rental rate higher than the average rental rate (Premium Films).
