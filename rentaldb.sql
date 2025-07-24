@@ -486,3 +486,7 @@ FROM total_spend ts
 CROSS JOIN avg_spend AS avgspendamnt
 INNER JOIN customer c ON ts.customer_id = c.customer_id
 WHERE ts.totspend > avgspendamnt.avg_spend;
+
+--Top Rented films in each category and Number of times they were rented.
+
+---Top Rented films in each category and Number of times they were rented.
