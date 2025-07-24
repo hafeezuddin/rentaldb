@@ -445,10 +445,44 @@ INNER JOIN film f ON i.film_id = f.film_id
 INNER JOIN expensive_movie em ON f.rental_rate =  em.max_rate
 ORDER BY c.customer_id;
 
---Subquery Version of Find customers who rented the most expensive movie (CTE)
-
-
 
 --Films that have a rental rate higher than the average rental rate (Premium Films).
+WITH avg_price AS (
+  SELECT AVG(f.rental_rate) AS avg_rate
+  FROM film f
+)
+SELECT f.film_id, f.title, f.rental_rate, ROUND(ap.avg_rate,2) AS avgrate
+FROM film f
+CROSS JOIN avg_price ap
+WHERE rental_rate > ap.avg_rate
+ORDER BY f.film_id;
 
- 
+--Films that have a rental rate higher than the average rental rate (Premium Films).
+SELECT f.film_id, 
+f.title, 
+f.rental_rate, 
+ROUND((SELECT AVG(f.rental_rate) AS avg_rate FROM film f),2)
+FROM film f
+WHERE f.rental_rate > (SELECT AVG(f.rental_rate) FROM film f)
+ORDER BY film_id;
+
+-- Customers who have spent more than the average total rental amount across all customers (Premium Customers)
+WITH total_spend AS (
+  SELECT p.customer_id,
+  SUM(p.amount) AS totspend
+  FROM payment p
+  GROUP BY 1
+  ORDER BY p.customer_id
+),
+avg_spend AS (
+  SELECT AVG(totspend) AS avg_spend
+  FROM total_spend
+)
+SELECT ts.customer_id,
+CONCAT(c.first_name,' ',c.last_name) AS full_name,
+ts.totspend, 
+ROUND(avgspendamnt.avg_spend,2) AS per_customer_avg
+FROM total_spend ts
+CROSS JOIN avg_spend AS avgspendamnt
+INNER JOIN customer c ON ts.customer_id = c.customer_id
+WHERE ts.totspend > avgspendamnt.avg_spend;
