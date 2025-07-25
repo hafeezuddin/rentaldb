@@ -488,5 +488,26 @@ INNER JOIN customer c ON ts.customer_id = c.customer_id
 WHERE ts.totspend > avgspendamnt.avg_spend;
 
 --Top Rented films in each category and Number of times they were rented.
+WITH filmcount AS (
+SELECT f.film_id, c.name, f.title,
+COUNT(*) AS total_rents
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+INNER JOIN film_category fc ON f.film_id = fc.film_id
+INNER JOIN category c ON fc.category_id = c.category_id
+GROUP BY 1,2,3
+),
+Catmax AS (
+  SELECT name, MAX(total_rents) AS max_rent
+FROM filmcount
+GROUP BY name
+)
 
----Top Rented films in each category and Number of times they were rented.
+SELECT cm.name AS category, 
+flc.film_id, 
+flc.title, 
+flc.total_rents AS no_of_times_rented
+FROM filmcount flc
+INNER JOIN catmax cm ON flc.name = cm.name
+WHERE flc.total_rents = cm.max_rent;
