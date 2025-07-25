@@ -511,3 +511,44 @@ flc.total_rents AS no_of_times_rented
 FROM filmcount flc
 INNER JOIN catmax cm ON flc.name = cm.name
 WHERE flc.total_rents = cm.max_rent;
+
+
+/* Categorize Films by Rental Performance
+Objective:
+Classify films into performance tiers based on rental frequency and compare their revenue contribution.
+
+Requirements:
+Use a CASE statement to categorize films as:
+"High Demand": Rented 30+ times | "Medium Demand": Rented 15-29 times | "Low Demand": Rented <15 times
+For each category, calculate: Number of films, Total revenue generated, Average rental rate
+Sort results by revenue contribution (highest to lowest). */
+
+
+WITH demandcat AS (
+SELECT f.film_id, 
+f.rental_rate,
+f.title, 
+COUNT(f.title) AS no_of_times_rented,
+CASE
+  WHEN COUNT(f.title) >= 30 THEN 'High Demand'
+  WHEN COUNT(f.title) BETWEEN 15 AND 29 THEN 'Medium Demand'
+  ELSE 'Low Demand'
+END AS Demand
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY 1,2,3
+ORDER BY no_of_times_rented DESC
+),
+catrevenue AS (
+  SELECT d.demand,
+  SUM(d.rental_rate * d.no_of_times_rented) AS revenue_per_cat,
+  ROUND(AVG(d.rental_rate),2) avg_rental_rate,
+  COUNT(d.demand)
+  FROM demandcat d
+  GROUP BY 1
+)
+SELECT * FROM catrevenue
+ORDER BY revenue_per_cat DESC;
+
+
