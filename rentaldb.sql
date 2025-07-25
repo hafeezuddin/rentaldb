@@ -523,15 +523,14 @@ Use a CASE statement to categorize films as:
 For each category, calculate: Number of films, Total revenue generated, Average rental rate
 Sort results by revenue contribution (highest to lowest). */
 
-
 WITH demandcat AS (
 SELECT f.film_id, 
 f.rental_rate,
 f.title, 
-COUNT(f.title) AS no_of_times_rented,
+COUNT(*) AS no_of_times_rented,
 CASE
-  WHEN COUNT(f.title) >= 30 THEN 'High Demand'
-  WHEN COUNT(f.title) BETWEEN 15 AND 29 THEN 'Medium Demand'
+  WHEN COUNT(*) >= 30 THEN 'High Demand'
+  WHEN COUNT(*) BETWEEN 15 AND 29 THEN 'Medium Demand'
   ELSE 'Low Demand'
 END AS Demand
 FROM film f
