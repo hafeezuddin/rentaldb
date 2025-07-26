@@ -385,6 +385,43 @@ JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY year, month, category
 ORDER BY rental_count DESC;
 
+/* Categorize Films by Rental Performance
+Objective:
+Classify films into performance tiers based on rental frequency and compare their revenue contribution.
+
+Requirements:
+Use a CASE statement to categorize films as:
+"High Demand": Rented 30+ times | "Medium Demand": Rented 15-29 times | "Low Demand": Rented <15 times
+For each category, calculate: Number of films, Total revenue generated, Average rental rate
+Sort results by revenue contribution (highest to lowest). */
+
+WITH demandcat AS (
+SELECT f.film_id, 
+f.rental_rate,
+f.title, 
+COUNT(*) AS no_of_times_rented,
+CASE
+  WHEN COUNT(*) >= 30 THEN 'High Demand'
+  WHEN COUNT(*) BETWEEN 15 AND 29 THEN 'Medium Demand'
+  ELSE 'Low Demand'
+END AS Demand
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY 1,2,3
+ORDER BY no_of_times_rented DESC
+),
+catrevenue AS (
+  SELECT d.demand,
+  SUM(d.rental_rate * d.no_of_times_rented) AS revenue_per_cat,
+  ROUND(AVG(d.rental_rate),2) avg_rental_rate,
+  COUNT(d.demand)
+  FROM demandcat d
+  GROUP BY 1
+)
+SELECT * FROM catrevenue
+ORDER BY revenue_per_cat DESC;
+
 -- =============================================
 -- 12. PREMIUM CONTENT ANALYSIS
 -- =============================================
@@ -457,16 +494,21 @@ CROSS JOIN avg_price ap
 WHERE rental_rate > ap.avg_rate
 ORDER BY f.film_id;
 
---Films that have a rental rate higher than the average rental rate (Premium Films).
+
+
+/* Films that have a rental rate higher than the average rental rate (Premium Films).*/
 SELECT f.film_id, 
 f.title, 
 f.rental_rate, 
-ROUND((SELECT AVG(f.rental_rate) AS avg_rate FROM film f),2)
+ROUND((SELECT AVG(f.rental_rate) AS avg_rate FROM film f),2) AS avg_rental_rate --Calculation of AVG rental rate.
 FROM film f
-WHERE f.rental_rate > (SELECT AVG(f.rental_rate) FROM film f)
+WHERE f.rental_rate > (SELECT AVG(f.rental_rate) FROM film f) --Comparing and filtering film rental rate with Avg rental rate using subquery
 ORDER BY film_id;
 
--- Customers who have spent more than the average total rental amount across all customers (Premium Customers)
+
+
+/* Customers who have spent more than the average total rental amount across all customers (Premium Customers)*/
+--CTE to calculate total amount spent by each customer. Data retreived from Payments table
 WITH total_spend AS (
   SELECT p.customer_id,
   SUM(p.amount) AS totspend
@@ -474,20 +516,27 @@ WITH total_spend AS (
   GROUP BY 1
   ORDER BY p.customer_id
 ),
+--CTE to calculate Average amount spent by each customer. Calculated from totspend metric from total_spend_cte 
 avg_spend AS (
   SELECT AVG(totspend) AS avg_spend
   FROM total_spend
 )
+--Main Query with cross join to compare, and filter the required data to display customers who spent more than average
 SELECT ts.customer_id,
 CONCAT(c.first_name,' ',c.last_name) AS full_name,
 ts.totspend, 
 ROUND(avgspendamnt.avg_spend,2) AS per_customer_avg
 FROM total_spend ts
-CROSS JOIN avg_spend AS avgspendamnt
+CROSS JOIN avg_spend AS avgspendamnt --Ideal when one value is being compared against all rows.
 INNER JOIN customer c ON ts.customer_id = c.customer_id
-WHERE ts.totspend > avgspendamnt.avg_spend;
+WHERE ts.totspend > avgspendamnt.avg_spend
+ORDER BY ts.totspend DESC;
 
---Top Rented films in each category and Number of times they were rented.
+
+
+
+/* Top Rented films in each category and Number of times they were rented.*/
+--CTE to find No.of.Times each film is rented/to calculate rental counts per film.
 WITH filmcount AS (
 SELECT f.film_id, c.name, f.title,
 COUNT(*) AS total_rents
@@ -498,56 +547,18 @@ INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category c ON fc.category_id = c.category_id
 GROUP BY 1,2,3
 ),
+-- CTE to find the maximum rental count for each category
 Catmax AS (
   SELECT name, MAX(total_rents) AS max_rent
 FROM filmcount
 GROUP BY name
 )
-
+--Main query to JOIN the results and display most rented films in each category.
 SELECT cm.name AS category, 
 flc.film_id, 
 flc.title, 
 flc.total_rents AS no_of_times_rented
 FROM filmcount flc
 INNER JOIN catmax cm ON flc.name = cm.name
-WHERE flc.total_rents = cm.max_rent;
-
-
-/* Categorize Films by Rental Performance
-Objective:
-Classify films into performance tiers based on rental frequency and compare their revenue contribution.
-
-Requirements:
-Use a CASE statement to categorize films as:
-"High Demand": Rented 30+ times | "Medium Demand": Rented 15-29 times | "Low Demand": Rented <15 times
-For each category, calculate: Number of films, Total revenue generated, Average rental rate
-Sort results by revenue contribution (highest to lowest). */
-
-WITH demandcat AS (
-SELECT f.film_id, 
-f.rental_rate,
-f.title, 
-COUNT(*) AS no_of_times_rented,
-CASE
-  WHEN COUNT(*) >= 30 THEN 'High Demand'
-  WHEN COUNT(*) BETWEEN 15 AND 29 THEN 'Medium Demand'
-  ELSE 'Low Demand'
-END AS Demand
-FROM film f
-INNER JOIN inventory i ON f.film_id = i.film_id
-INNER JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY 1,2,3
-ORDER BY no_of_times_rented DESC
-),
-catrevenue AS (
-  SELECT d.demand,
-  SUM(d.rental_rate * d.no_of_times_rented) AS revenue_per_cat,
-  ROUND(AVG(d.rental_rate),2) avg_rental_rate,
-  COUNT(d.demand)
-  FROM demandcat d
-  GROUP BY 1
-)
-SELECT * FROM catrevenue
-ORDER BY revenue_per_cat DESC;
-
-
+WHERE flc.total_rents = cm.max_rent
+ORDER BY cm.name;
