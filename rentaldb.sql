@@ -325,7 +325,7 @@ SELECT
   r.staff_id, 
   s.email, 
   COUNT(*) AS rental_count
-FROM rental r JOIN staff s ON r.staff_id = s.staff_id
+FROM rental r JOIN staff s ON r.staff_id = s.staff_id --Joing Staff table
 GROUP BY r.staff_id, s.email
 ORDER BY rental_count DESC;
 
@@ -333,7 +333,7 @@ ORDER BY rental_count DESC;
 -- 10. OPERATIONAL ISSUES
 -- =============================================
 
--- Late returns
+/* Query to extract customers who return the rented films late using the date operations */
 SELECT 
   r.customer_id, 
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -344,14 +344,16 @@ JOIN inventory i ON r.inventory_id = i.inventory_id
 JOIN film f ON i.film_id = f.film_id
 JOIN customer c ON r.customer_id = c.customer_id
 WHERE r.return_date IS NOT NULL 
-  AND (r.return_date::date - r.rental_date::date) > f.rental_duration
-GROUP BY r.customer_id, customer_name, c.email
+  AND (r.return_date::date - r.rental_date::date) > f.rental_duration 
+  --Converting renturn date, rental date into date and comparing that with rental duration to filter late returns
+GROUP BY 1,2,3
 ORDER BY late_returns DESC
 LIMIT 10;
 
--- Unreturned films
+
+/* Unreturned films*/
 SELECT 
-  CONCAT(c.first_name, ' ', c.last_name) AS customer_name, 
+  CONCAT(c.first_name, ' ', c.last_name) AS customer_name, --Concating firstname and lastname into customername
   c.email, 
   r.rental_date,
   EXTRACT(DAYS FROM (CURRENT_DATE - r.rental_date)) AS days_rented
@@ -363,16 +365,18 @@ WHERE r.return_date IS NULL;
 -- 11. TEMPORAL TRENDS
 -- =============================================
 
--- Monthly rental trends
+/* Monthly rental trends */
+--Rental data month and year wise.
 SELECT 
-  TO_CHAR(rental_date, 'MON') AS month,
+  TO_CHAR(rental_date, 'MM') AS month,
   EXTRACT(YEAR FROM rental_date) AS year,
   COUNT(*) AS rental_count
 FROM rental
-GROUP BY month, year
+GROUP BY 1, 2
 ORDER BY rental_count DESC;
 
--- Category popularity by year/month
+/* Category popularity by year/month */
+--Main query to calculate no.of.rentals in each category, month and year wise.
 SELECT 
   TO_CHAR(r.rental_date, 'YYYY') AS year,
   TO_CHAR(r.rental_date, 'MM') AS month,
@@ -382,7 +386,7 @@ FROM category c
 JOIN film_category fc ON c.category_id = fc.category_id
 JOIN inventory i ON fc.film_id = i.film_id
 JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY year, month, category
+GROUP BY 1, 2, 3
 ORDER BY rental_count DESC;
 
 /* Categorize Films by Rental Performance
@@ -395,6 +399,7 @@ Use a CASE statement to categorize films as:
 For each category, calculate: Number of films, Total revenue generated, Average rental rate
 Sort results by revenue contribution (highest to lowest). */
 
+--CTE to categorize films based on no.of.times film was rented
 WITH demandcat AS (
 SELECT f.film_id, 
 f.rental_rate,
@@ -411,10 +416,11 @@ INNER JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY 1,2,3
 ORDER BY no_of_times_rented DESC
 ),
+--CTE to calculate revenue per category, Average rental rate and no.of.films in each category.
 catrevenue AS (
   SELECT d.demand,
-  SUM(d.rental_rate * d.no_of_times_rented) AS revenue_per_cat,
-  ROUND(AVG(d.rental_rate),2) avg_rental_rate,
+  SUM(d.rental_rate * d.no_of_times_rented) AS revenue_per_cat, --Calculation of revenue in each category
+  ROUND(AVG(d.rental_rate),2) avg_rental_rate, --Average rental rate calculation for the data in each category.
   COUNT(d.demand)
   FROM demandcat d
   GROUP BY 1
@@ -426,20 +432,51 @@ ORDER BY revenue_per_cat DESC;
 -- 12. PREMIUM CONTENT ANALYSIS
 -- =============================================
 
--- Customers renting premium films
+/* Customers renting premium films */
+--CTE to filter films which are most expensive
 WITH premium_films AS (
   SELECT film_id 
   FROM film 
   WHERE rental_rate = (SELECT MAX(rental_rate) FROM film)
 )
+--Main query to display customer details who rented those expensive films
 SELECT DISTINCT c.customer_id
 FROM customer c
 JOIN rental r ON c.customer_id = r.customer_id
 JOIN inventory i ON r.inventory_id = i.inventory_id
-JOIN premium_films pf ON i.film_id = pf.film_id
+JOIN premium_films pf ON i.film_id = pf.film_id --Joining CTE table to filter records using premium_films CTE
 ORDER BY c.customer_id;
 
--- Top rented films per category
+--Without subquery
+WITH maxrate AS (
+  SELECT MAX(rental_rate) AS max_rate FROM film f
+)
+SELECT DISTINCT c.first_name, c.last_name, c.email
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+--INNER JOIN maxrate mr ON f.rental_rate = mr.max_rate (Alternative)
+CROSS JOIN maxrate mr
+WHERE f.rental_rate = mr.max_rate
+ORDER BY c.first_name, c.last_name;
+
+WITH maxrate AS (
+  SELECT MAX(rental_rate) AS max_rate FROM film f
+)
+SELECT DISTINCT c.first_name, c.last_name, c.email
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+--INNER JOIN maxrate mr ON f.rental_rate = mr.max_rate (Alternative)
+CROSS JOIN maxrate mr
+WHERE f.rental_rate = mr.max_rate
+ORDER BY c.first_name, c.last_name;
+
+
+/*Top rented films per category*/
+--CTE to calculate how many times each film is rented along with its category
 WITH film_rentals AS (
   SELECT 
     f.film_id,
@@ -453,6 +490,7 @@ WITH film_rentals AS (
   JOIN rental r ON i.inventory_id = r.inventory_id
   GROUP BY f.film_id, f.title, c.name
 ),
+--CTE to extract Category max values from the film_rental CTE for each category
 category_max AS (
   SELECT 
     category,
@@ -460,6 +498,7 @@ category_max AS (
   FROM film_rentals
   GROUP BY category
 )
+--Main query to find top rented films in each category
 SELECT 
   fr.film_id,
   fr.title,
@@ -467,36 +506,43 @@ SELECT
   fr.rental_count
 FROM film_rentals fr
 JOIN category_max cm ON fr.category = cm.category AND fr.rental_count = cm.max_rentals
+--Joining category_max CTE AND Film_Rental CTE & Filtering to extract most rented films in each category
 ORDER BY fr.category;
 
---Find customers who rented the most expensive movie (CTE)
+
+
+/* Find customers who rented the most expensive movie (CTE)*/
+--CTE to extract expensive movie rate from film table.
 WITH expensive_movie AS (
   SELECT MAX(f.rental_rate) AS max_rate
   FROM film f
 )
+--Main Query to find customers and who rented those films (Can be multiple)
 SELECT DISTINCT c.customer_id, c.first_name, c.last_name
 FROM customer c
 INNER JOIN rental r ON c.customer_id = r.customer_id
 INNER JOIN inventory i ON r.inventory_id = i.inventory_id
 INNER JOIN film f ON i.film_id = f.film_id
-INNER JOIN expensive_movie em ON f.rental_rate =  em.max_rate
+INNER JOIN expensive_movie em ON f.rental_rate =  em.max_rate 
+--INNER JOIN CTE filters data by only keeping data that is equal to expensive movie rate
 ORDER BY c.customer_id;
 
 
---Films that have a rental rate higher than the average rental rate (Premium Films).
+/*Films that have a rental rate higher than the average rental rate (Premium Films) using CTE.*/
+--CTE to calculate average rental rate of films from film table
 WITH avg_price AS (
   SELECT AVG(f.rental_rate) AS avg_rate
   FROM film f
 )
 SELECT f.film_id, f.title, f.rental_rate, ROUND(ap.avg_rate,2) AS avgrate
 FROM film f
-CROSS JOIN avg_price ap
-WHERE rental_rate > ap.avg_rate
+CROSS JOIN avg_price ap --Cross join implementation to compare avgrate with rental rate of film.
+WHERE rental_rate > ap.avg_rate --Filtering films whose rental rate > avgerage rate
 ORDER BY f.film_id;
 
 
 
-/* Films that have a rental rate higher than the average rental rate (Premium Films).*/
+/* Films that have a rental rate higher than the average rental rate (Premium Films) using subquery.*/
 SELECT f.film_id, 
 f.title, 
 f.rental_rate, 
@@ -531,7 +577,6 @@ CROSS JOIN avg_spend AS avgspendamnt --Ideal when one value is being compared ag
 INNER JOIN customer c ON ts.customer_id = c.customer_id
 WHERE ts.totspend > avgspendamnt.avg_spend
 ORDER BY ts.totspend DESC;
-
 
 
 
