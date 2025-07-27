@@ -666,9 +666,10 @@ GROUP BY name
 --Main query to JOIN the results and display most rented films in each category.
 SELECT cm.name AS category, 
 flc.film_id, 
-flc.title, 
+flc.title AS film_name, 
 flc.total_rents AS no_of_times_rented
 FROM filmcount flc
 INNER JOIN catmax cm ON flc.name = cm.name
 WHERE flc.total_rents = cm.max_rent
 ORDER BY cm.name;
+s
