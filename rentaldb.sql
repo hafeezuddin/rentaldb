@@ -1,7 +1,5 @@
 /* =============================================
    COMPLETE DVD Rental Database Analysis Script
-   Includes ALL original queries with optimization
-   Organized by business function
    ============================================= */
 
 -- =============================================
@@ -21,88 +19,133 @@ WHERE table_name = 'address' AND table_schema = 'public';
 -- 2. BASIC DATA INSPECTION
 -- =============================================
 
--- Sample customer records
-SELECT * FROM customer ORDER BY customer_id LIMIT 5;
+/* Customer data Sample */
+SELECT * FROM customer c 
+ORDER BY customer_id LIMIT 5;
 
--- Entity counts
+/* Count of Total distinct customers, total films, total rentals */
+--Main Query with subquery to display Distinct customers, rentals and films
 SELECT 
   (SELECT COUNT(DISTINCT customer_id) FROM customer) AS total_customers,
   (SELECT COUNT(DISTINCT film_id) FROM film) AS total_films,
   (SELECT COUNT(DISTINCT rental_date) FROM rental) AS total_rentals;
 
--- Distinct categories
-SELECT DISTINCT name FROM category;
+--Using CTE & CROSS JOIN
+WITH total_customers AS (
+  SELECT COUNT(DISTINCT customer_id) AS total_customers
+  FROM customer c
+),
+total_films AS (
+  SELECT COUNT(DISTINCT f.film_id) AS total_films
+  FROM film f
+),
+total_rentals AS (
+  SELECT COUNT(DISTINCT r.rental_id) AS total_rentals
+  FROM rental r
+)
+SELECT * FROM total_customers
+CROSS JOIN total_films, total_rentals; --Cross Join to join single value tables.
+
+
+/* Distinct categories across stores */
+SELECT DISTINCT c.name 
+FROM category c;
 
 -- =============================================
 -- 3. CUSTOMER ANALYSIS
 -- =============================================
 
--- Customer full names
-SELECT CONCAT(first_name,' ',last_name) AS full_name FROM customer;
+/* List of all customers with their full nmes */
+SELECT CONCAT(first_name,' ',last_name) AS full_name 
+FROM customer;
 
--- Customers from London
+/* Customers who are from London city */
 SELECT CONCAT(first_name,' ', last_name) AS customer_name
 FROM customer c
 JOIN address a ON c.address_id = a.address_id
 JOIN city ci ON a.city_id = ci.city_id
 WHERE ci.city = 'London';
 
--- Active customers (rented at least once)
-SELECT DISTINCT r.customer_id, c.first_name, c.last_name
-FROM rental r JOIN customer c ON r.customer_id = c.customer_id
+/* List of active customers who rented atleast once */
+SELECT DISTINCT r.customer_id AS customer_id, 
+c.first_name, 
+c.last_name
+FROM rental r 
+JOIN customer c ON r.customer_id = c.customer_id
 ORDER BY r.customer_id;
 
--- Inactive customers (never rented)
+/* List of customers who never rented a film */
 SELECT c.customer_id
-FROM customer c LEFT JOIN rental r ON c.customer_id = r.customer_id
+FROM customer c 
+LEFT JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.customer_id IS NULL 
 LIMIT 5;
 
--- Customers renting from multiple stores
-SELECT r.customer_id, c.first_name
-FROM rental r JOIN customer c ON r.customer_id = c.customer_id
+/* Customers renting from multiple stores */
+SELECT r.customer_id AS Customer_id, 
+c.first_name AS first_name
+FROM rental r 
+JOIN customer c ON r.customer_id = c.customer_id
 WHERE r.staff_id IN (1,2)
 GROUP BY r.customer_id, c.first_name
 HAVING COUNT(DISTINCT r.staff_id) = 2;
+
 
 -- =============================================
 -- 4. FILM ANALYSIS  
 -- =============================================
 
--- Films with language
-SELECT f.title, l.name AS language
-FROM film f JOIN language l ON f.language_id = l.language_id;
+/* Language of Each film */
+SELECT f.title AS film_name, 
+l.name AS language
+FROM film f 
+JOIN language l ON f.language_id = l.language_id;
 
--- Films not in inventory
-SELECT f.film_id 
-FROM film f LEFT JOIN inventory i ON f.film_id = i.film_id
+/* No. of films in each language */
+SELECT l.name AS film_language, 
+COUNT(*) AS no_of_films
+FROM language l
+INNER JOIN film f ON l.language_id = f.language_id
+GROUP BY 1
+ORDER BY no_of_films DESC;
+
+/* List of films which are not in inventory */
+SELECT f.film_id, f.title
+FROM film f 
+LEFT JOIN inventory i ON f.film_id = i.film_id
 WHERE i.inventory_id IS NULL;
 
--- Films by rating
-SELECT f.rating, COUNT(*) AS film_count
+/* Films by rating (PG-13/NC-17/R/PG/G)*/
+SELECT f.rating AS film_rating, 
+COUNT(*) AS film_count
 FROM film f
 GROUP BY f.rating
 ORDER BY film_count DESC;
 
--- Category film counts
-SELECT c.name, COUNT(*) AS film_count
+/* No.of films in each category. Ordered by category having most no of films */
+SELECT c.name AS category_name, 
+COUNT(*) AS film_count
 FROM category c 
 JOIN film_category fc ON c.category_id = fc.category_id
 JOIN film f ON fc.film_id = f.film_id
 GROUP BY c.name 
 ORDER BY film_count DESC;
 
--- Small categories (<5 films)
-SELECT c.name, COUNT(*) AS film_count
-FROM category c JOIN film_category fc ON c.category_id = fc.category_id
-GROUP BY c.name 
+
+/* Categories with less than 5 films in them */
+SELECT c.name AS category_name, 
+COUNT(*) AS no_of_films
+FROM category c
+INNER JOIN film_category fc ON c.category_id = fc.category_id
+GROUP BY c.name
 HAVING COUNT(*) < 5;
+
 
 -- =============================================
 -- 5. RENTAL ANALYSIS
 -- =============================================
 
--- Rental frequency by customer
+/* Rental count by customer */
 SELECT 
   r.customer_id, 
   c.first_name, 
@@ -112,7 +155,7 @@ FROM rental r JOIN customer c ON r.customer_id = c.customer_id
 GROUP BY r.customer_id, c.first_name, c.last_name 
 ORDER BY rental_count DESC;
 
--- Top 5 renters
+/* Customers who rented the films the most */
 SELECT 
   c.customer_id, 
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -122,13 +165,13 @@ GROUP BY c.customer_id, customer_name
 ORDER BY total_rentals DESC
 LIMIT 5;
 
--- Rentals per film
+/* How many times each film is rented out/ Top renting films */
 SELECT i.film_id, COUNT(*) AS rental_count
 FROM inventory i JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY i.film_id
 ORDER BY rental_count DESC;
 
--- Average rental duration per film
+/* Calculating Average duration for each film */
 SELECT 
   f.film_id, 
   f.title,
@@ -140,7 +183,7 @@ WHERE r.return_date IS NOT NULL
 GROUP BY f.film_id, f.title
 ORDER BY avg_rental_days DESC;
 
--- Busiest rental hours
+/* Hours which are busiest/Most rentals */
 SELECT 
   EXTRACT(HOUR FROM rental_date) AS hour_of_day,
   COUNT(*) AS rental_count
@@ -153,7 +196,7 @@ LIMIT 10;
 -- 6. FINANCIAL ANALYSIS
 -- =============================================
 
--- Top spending customers
+/* Top Spending customers for loyalty rewards */
 SELECT 
   c.customer_id, 
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -163,7 +206,7 @@ GROUP BY c.customer_id, customer_name
 ORDER BY total_spend DESC
 LIMIT 5;
 
--- Customer lifetime value
+/* Total amount spent by a customer across all transactions (Life time value) */
 SELECT 
   p.customer_id, 
   SUM(p.amount) AS lifetime_value
@@ -171,16 +214,17 @@ FROM payment p
 GROUP BY p.customer_id
 ORDER BY lifetime_value DESC;
 
--- Average revenue per customer (two methods)
--- Method 1: Subquery
-SELECT CONCAT(ROUND(AVG(total_revenue),2),'$') AS avg_revenue_per_customer
+/* Average revenue per customer */
+-- Option 1: Subquery
+SELECT CONCAT(ROUND(AVG(total_revenue),2),'$') AS avg_revenue_per_customer --Main query to calculate avg revenue per customer
 FROM (
-  SELECT customer_id, SUM(amount) AS total_revenue
+  SELECT customer_id, SUM(amount) AS total_revenue --Subquery to calculate total anount spent by each customer.
   FROM payment
   GROUP BY customer_id
 ) AS customer_revenue;
 
--- Method 2: CTE
+-- Option 2: CTE
+--CTE to calculate amount total spent by customer
 WITH customer_revenue AS (
   SELECT customer_id, SUM(amount) AS total_revenue
   FROM payment
@@ -189,7 +233,8 @@ WITH customer_revenue AS (
 SELECT CONCAT(ROUND(AVG(total_revenue),2),'$') AS avg_revenue_per_customer
 FROM customer_revenue;
 
--- Customers spending above average
+/* Customers spending more than average spend */
+--CTE to calculate amount spend by each customer across multiple rental transactions.
 WITH customer_spending AS (
   SELECT 
     customer_id, 
@@ -201,10 +246,13 @@ SELECT
   customer_id, 
   total_spent
 FROM customer_spending
+--Comparing total amount spend by a customer with average for filtering
 WHERE total_spent > (SELECT AVG(total_spent) FROM customer_spending)
 ORDER BY customer_id;
 
+
 -- Alternative with CROSS JOIN
+--CTE to calculate total amount spent by each customer across all transactions.
 WITH customer_spending AS (
   SELECT 
     customer_id, 
@@ -212,22 +260,24 @@ WITH customer_spending AS (
   FROM payment
   GROUP BY customer_id
 ),
+--CTE to calculate avg amount spent by all customers
 avg_spending AS (
   SELECT AVG(total_spent) AS avg_spent
   FROM customer_spending
 )
+--Main query to display customers and filter them
 SELECT 
   cs.customer_id, 
   cs.total_spent
 FROM customer_spending cs
-CROSS JOIN avg_spending
-WHERE cs.total_spent > avg_spending.avg_spent
+CROSS JOIN avg_spending --Ideal when comparing one value to many rows
+WHERE cs.total_spent > avg_spending.avg_spent -- Filtering
 ORDER BY cs.customer_id;
 
--- Total revenue
+/* Total revenue generated till date */
 SELECT CONCAT(SUM(amount),'$') AS total_revenue FROM payment;
 
--- Yearly revenue
+/* Yearly revenue generated by all stores acorss all geographies */
 SELECT 
   EXTRACT(YEAR FROM payment_date) AS year, 
   CONCAT(SUM(amount),'$') AS revenue
@@ -235,7 +285,7 @@ FROM payment
 GROUP BY year
 ORDER BY year;
 
--- Monthly revenue
+/* Total Revenue calculation by Year, Month and total revenue generated */
 SELECT 
   EXTRACT(YEAR FROM payment_date) AS year,
   TO_CHAR(payment_date, 'month') AS month,
@@ -248,7 +298,7 @@ ORDER BY year, month;
 -- 7. GEOGRAPHIC ANALYSIS
 -- =============================================
 
--- Store locations
+/* Store information */
 SELECT 
   s.store_id, 
   c.city, 
@@ -258,7 +308,7 @@ JOIN address a ON s.address_id = a.address_id
 JOIN city c ON a.city_id = c.city_id
 JOIN country co ON c.country_id = co.country_id;
 
--- Rental trends by location
+/* Rental trends by location (City, Country), Year and Month */
 SELECT 
   co.country, 
   c.city,
@@ -273,7 +323,7 @@ JOIN rental r ON cu.customer_id = r.customer_id
 GROUP BY co.country, c.city, year, month
 ORDER BY rental_count DESC;
 
--- Top revenue cities
+/* Top revenue generating cities */
 SELECT 
   c.city, 
   EXTRACT(YEAR FROM p.payment_date) AS year,
@@ -284,13 +334,13 @@ JOIN customer ct ON a.address_id = ct.address_id
 JOIN payment p ON ct.customer_id = p.customer_id
 GROUP BY c.city, year
 ORDER BY total_revenue DESC
-LIMIT 10;
+LIMIT 10; --Limiting by top 10 cities
 
 -- =============================================
 -- 8. CATEGORY ANALYSIS
 -- =============================================
 
--- Rentals per category
+/* Films rented out in each category */
 SELECT 
   c.category_id, 
   c.name, 
@@ -302,7 +352,12 @@ JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY c.category_id, c.name
 ORDER BY rental_count DESC;
 
--- Profitable categories
+/* Finding categories which are more profitable */
+/* Main query to calculate rentals in each movie category, 
+revenue generated by them and 
+average revenue per rental in that category
+Ordered by Avg revenue */
+
 SELECT 
   c.name, 
   COUNT(r.rental_id) AS total_rentals,
@@ -316,16 +371,26 @@ JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY c.name
 ORDER BY avg_revenue_per_rental DESC;
 
+
+
+--Key Insights Derived
+--Sports generates highest revenue despite being in 3rd Position by avg_revenue
+-- Comedy Category Commands the highest premium.
+-- Family and Classics have below avg revenue.
+--Sports + Comedy + Sci-Fi deliver 28% of total revenue
+
+
+
 -- =============================================
 -- 9. STAFF PERFORMANCE
 -- =============================================
 
--- Staff rental counts
+/* No.of.films rented out by each staff member/Metric to evaluate performance */
 SELECT 
   r.staff_id, 
   s.email, 
   COUNT(*) AS rental_count
-FROM rental r JOIN staff s ON r.staff_id = s.staff_id --Joing Staff table
+FROM rental r JOIN staff s ON r.staff_id = s.staff_id --Joing Staff table to retrive identifiable staff data
 GROUP BY r.staff_id, s.email
 ORDER BY rental_count DESC;
 
