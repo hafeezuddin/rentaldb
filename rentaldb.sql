@@ -82,14 +82,13 @@ WHERE r.customer_id IS NULL
 LIMIT 5;
 
 /* Customers renting from multiple stores */
-SELECT r.customer_id AS Customer_id, 
-c.first_name AS first_name
-FROM rental r 
-JOIN customer c ON r.customer_id = c.customer_id
-WHERE r.staff_id IN (1,2)
-GROUP BY r.customer_id, c.first_name
-HAVING COUNT(DISTINCT r.staff_id) = 2;
-
+SELECT c.customer_id, c.first_name, c.last_name
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN staff s ON r.staff_id = s.staff_id
+WHERE s.store_id IN (1,2)
+GROUP BY 1,2,3
+HAVING COUNT(DISTINCT s.store_id)=2;
 
 -- =============================================
 -- 4. FILM ANALYSIS  
