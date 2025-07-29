@@ -1,5 +1,6 @@
 /* =============================================
    COMPLETE DVD Rental Database Analysis Script
+   Author: Khaja Hafeezuddin Shaik
    ============================================= */
 
 -- =============================================
@@ -671,4 +672,5 @@ FROM filmcount flc
 INNER JOIN catmax cm ON flc.name = cm.name
 WHERE flc.total_rents = cm.max_rent
 ORDER BY cm.name;
-s
+
+
