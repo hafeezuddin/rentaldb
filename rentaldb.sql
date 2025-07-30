@@ -420,7 +420,7 @@ LIMIT 10;
 SELECT 
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name, --Concating firstname and lastname into customername
   c.email, 
-  r.rental_date,
+  r.rental_date, r.return_date,
   EXTRACT(DAYS FROM (CURRENT_DATE - r.rental_date)) AS days_rented
 FROM customer c
 JOIN rental r ON c.customer_id = r.customer_id
