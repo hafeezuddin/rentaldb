@@ -745,5 +745,5 @@ avg_metrics AS (
 SELECT fm.film_id, fm.title
 FROM film_metrics fm
 CROSS JOIN avg_metrics a --CROSS for comparision
-WHERE fm.total_revenue_per_film > a.rental_average_revenue
+WHERE fm.total_revenue_per_film > a.rental_average_revenue --Filtering data
 AND inventory_count < a.avg_inventory_count;
