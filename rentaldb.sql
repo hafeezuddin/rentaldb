@@ -718,3 +718,32 @@ CROSS JOIN avg_metrics a
 WHERE fm.avg_revenue_per_rental > a.avg_rental_amount
 AND fm.no_of_times_film_rented < a.avg_no_of_times_film_rented
 ORDER BY avg_revenue_per_rental DESC;
+
+
+
+/*Identify Films with High Revenue but Low Availability. 
+(Find films that generate strong revenue per rental but have limited inventory copies, 
+potentially indicating missed business opportunities)*/
+
+WITH film_metrics AS (
+SELECT f.film_id, 
+f.title, 
+SUM(p.amount) AS total_revenue_per_film,
+SUM(p.amount)/COUNT(r.rental_id) AS avg_revenue_per_rental,
+COUNT(i.inventory_id) AS inventory_count
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2
+),
+avg_metrics AS (
+  SELECT AVG(avg_revenue_per_rental) AS rental_average_revenue,
+  AVG(inventory_count) AS avg_inventory_count
+  FROM film_metrics
+)
+SELECT fm.film_id, fm.title
+FROM film_metrics fm
+CROSS JOIN avg_metrics a
+WHERE fm.total_revenue_per_film > a.rental_average_revenue
+AND inventory_count < a.avg_inventory_count;
