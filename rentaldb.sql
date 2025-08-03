@@ -886,3 +886,12 @@ FROM abv_avg_rental_f aarf
 INNER JOIN low_priced_films lpf ON aarf.film_id = lpf.film_id
 INNER JOIN available_in_inventory aii ON lpf.film_id = aii.film_id
 ORDER BY aarf.film_id;
+
+
+/* Task: Identify Never-Rented Films with High Revenue Potential. 
+Find films that meet all of these criteria: 
+Zero Rentals: 
+Never been rented
+High Value: Rental rate above the average for their category 
+In Stock: Currently available in inventory. */
+--CTE to find films that have never been rented
