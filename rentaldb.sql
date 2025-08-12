@@ -928,8 +928,7 @@ ORDER BY aarf.film_id;
 /* Task: Identify Never-Rented Films with High Revenue Potential. 
  Find films that meet all of these criteria: 
 
- Zero Rentals: 
- Never been rented
+ Zero Rentals: Never been rented
  High Value: Rental rate above the average for their category 
  In Stock: Currently available in inventory. */
 
