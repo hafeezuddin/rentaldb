@@ -1,86 +1,37 @@
-# rentaldb
-A comprehensive SQL analytics project exploring customer behavior, film rentals, revenue trends, and business insights using the classic DVD Rental dataset. Queries are organized into schema exploration, customer insights, film & rental analytics, and revenue trends. This project demonstrates advanced SQL skills including joins, subqueries, aggregations, and date functions to extract actionable business intelligence.
+📄 DVD Rental Database Analysis – SQL Script
+📌 Overview
+This SQL script performs a comprehensive analysis of the DVD Rental Sample Database, covering schema exploration, customer trends, inventory management, rental patterns, revenue insights, and staff performance.
+It is structured into 12 sections, each focusing on a different analytical objective, with clear comments for easy navigation.
 
-DVD Rental Database Analysis
-Overview
+🛠 Requirements
+Database: PostgreSQL
+Sample DB: DVD Rental Database (can be restored from .tar file)
+Tool: pgAdmin, psql CLI, or Visual Studio Code with PostgreSQL extension
 
-This repository contains a comprehensive SQL script for analyzing the DVD Rental database. The script explores various aspects of the business including customer behavior, film popularity, financial performance, and operational metrics.
 
-Database Schema
+| Section No. | Topic                       | Description                                                                                        |
+| ----------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
+| **1**       | Database Schema Exploration | Lists tables, columns, and relationships in the database.                                          |
+| **2**       | Film Information            | Retrieves detailed film data including categories and length.                                      |
+| **3**       | Customer Data               | Analyzes customer profiles, active/inactive status, and regions.                                   |
+| **4**       | Rental Information          | Tracks rentals, overdue returns, and rental frequency.                                             |
+| **5**       | Financial Insights          | Calculates revenue per film, per store, and per customer.                                          |
+| **6**       | Staff Performance           | Measures staff rental counts, revenue generated, and workload.                                     |
+| **7**       | Geographic Analysis         | Shows customer and rental distribution by city and country.                                        |
+| **8**       | Category Insights           | Compares film categories by rental count and revenue.                                              |
+| **9**       | Time-based Trends           | Highlights seasonal and monthly rental patterns.                                                   |
+| **10**      | Inventory Management        | Checks stock levels and availability for films.                                                    |
+| **11**      | High & Low Performers       | Identifies best-selling and underperforming films.                                                 |
+| **12**      | Advanced Queries            | Finds “Films at Risk of Being Overlooked” – high rental rate, low rentals, and currently in stock. |
 
-The DVD Rental database contains the following key tables:
 
-customer - Customer information
-film - Movie details
-rental - Rental transactions
-payment - Payment records
-inventory - Film inventory
-category - Film categories
-staff - Store staff information
-store - Store locations
-Analysis Sections
+📊 Key Analytical Highlights
+Revenue Hotspots – Pinpoints cities, stores, and categories driving the most revenue.
+Customer Engagement – Identifies high-value customers and churn risks.
+Inventory Gaps – Finds films that are in stock but rarely rented.
+Seasonality – Detects peak and off-peak rental months.
+Operational Insights – Evaluates staff contribution to rentals and revenue.
 
-1. Database Exploration
-
-Lists all tables and their columns
-Provides basic data inspection queries
-2. Customer Analysis
-
-Customer demographics and activity
-Rental patterns by customer
-Customer segmentation (active vs inactive)
-3. Film Analysis
-
-Film categorization and ratings
-Inventory status
-Language distribution
-Category popularity
-4. Rental Analysis
-
-Rental frequency and patterns
-Busiest rental hours
-Rental duration metrics
-5. Financial Analysis
-
-Revenue generation by period
-Customer lifetime value
-Spending patterns
-Profitability by category
-6. Geographic Analysis
-
-Store locations and performance
-Regional rental trends
-Top revenue-generating cities
-7. Staff Performance
-
-Rental processing metrics
-Staff productivity
-8. Operational Insights
-
-Late returns identification
-Unreturned films tracking
-9. Advanced Analytics
-
-Temporal trends analysis
-Premium content identification
-Demand classification
-Inventory optimization opportunities
-Usage
-
-Ensure you have PostgreSQL installed with the DVD Rental database loaded
-Execute the SQL script in your PostgreSQL client
-Modify queries as needed for your specific analysis requirements
-Key Features
-
-Comprehensive coverage of business metrics
-Multiple approaches to solving analytical problems (CTEs, subqueries, joins)
-Performance optimization considerations
-Clear commenting for easy understanding
-Practical business insights generation
-
-Author
-Khaja Hafeezuddin Shaik
-
-License
-Feel free to use and modify as needed.
+📄 License
+This project is licensed under the MIT License – you are free to use, modify, and distribute with attribution.
 

@@ -978,6 +978,8 @@ INNER JOIN abv_avg_rental_rate aarr ON fwnr.film_id = aarr.film_id
 INNER JOIN available_in_inventory aii ON aarr.film_id = aii.film_id;
 
 
+
+
 /*- Find customers who have rented films more than the average number of times but whose 
 total spend is below the average total spend across all customers. */
 
