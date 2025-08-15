@@ -1029,6 +1029,8 @@ INNER JOIN below_avg_payment bap ON aar.customer_id = bap.customer_id
 ORDER BY 1;
 
 
+
+
 /* Weekend Rental Lovers
 Find the top 10 customers who rented the most movies on weekends (Saturday and Sunday).*/
 --CTE to find top 10 customers who rented most on weekends, corresponding metric (count)
@@ -1061,3 +1063,47 @@ ROUND((wknd_rental.wk_rental_count::numeric/rbci.total_rentals::numeric)*100,2) 
 FROM wknd_rental
 INNER JOIN rentals_by_customer_id rbci ON wknd_rental.customer_id = rbci.customer_id;
 
+
+/* Find the top 5 films that: Have been rented at least 10 times in total. Have the highest average rental duration (in days).
+Show the film title, total number of rentals, and the average rental duration (rounded to 2 decimal places).
+Also display the category of each film.*/
+
+SELECT f.film_id,
+    f.title,
+    c.name,
+    COUNT(*) AS no_of_times_rented,
+    EXTRACT(
+        DAY
+        FROM AVG(r.return_date - r.rental_date)
+    ) AS avg_rental_duration
+FROM film f
+    INNER JOIN film_category fc ON f.film_id = fc.film_id
+    INNER JOIN category c ON fc.category_id = c.category_id
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+GROUP BY 1,2,3
+HAVING count(*) >= 10
+ORDER BY AVG(r.return_date - r.rental_date) DESC;
+
+/* Find the top 5 customers who:
+Have spent the most total rental fees (based on payment.amount).
+Also have rented films from at least 5 different categories.
+Display for each customer: customer_id,first_name & last_name,total_spent, number_of_categories_rented
+Order the result by total_spent (highest first). */
+--CTE to find customers who rented from atleast 5 categories.
+WITH atleast_five_cat AS (
+  SELECT c.customer_id, c.first_name, count(DISTINCT ct.name) AS number_of_categories_rented FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film_category fc ON i.film_id = fc.film_id
+INNER JOIN category ct ON fc.category_id = ct.category_id
+GROUP BY 1,2
+HAVING count(DISTINCT ct.name) >=5
+ORDER BY 1
+),
+--CTE to find top total spenders from payments table
+top_spenders AS (
+  SELECT c.customer_id, c.first_name, SUM(p.amount) AS total_spent FROM customer c
+  INNER JOIN payment p ON c.customer_id = p.customer_id
+  GROUP BY 1,2
+)
