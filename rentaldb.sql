@@ -1083,27 +1083,100 @@ FROM film f
     INNER JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY 1,2,3
 HAVING count(*) >= 10
-ORDER BY AVG(r.return_date - r.rental_date) DESC;
+ORDER BY AVG(r.return_date - r.rental_date) DESC
+LIMIT 5;
+
+
 
 /* Find the top 5 customers who:
 Have spent the most total rental fees (based on payment.amount).
 Also have rented films from at least 5 different categories.
 Display for each customer: customer_id,first_name & last_name,total_spent, number_of_categories_rented
 Order the result by total_spent (highest first). */
---CTE to find customers who rented from atleast 5 categories.
-WITH atleast_five_cat AS (
-  SELECT c.customer_id, c.first_name, count(DISTINCT ct.name) AS number_of_categories_rented FROM customer c
-INNER JOIN rental r ON c.customer_id = r.customer_id
-INNER JOIN inventory i ON r.inventory_id = i.inventory_id
-INNER JOIN film_category fc ON i.film_id = fc.film_id
-INNER JOIN category ct ON fc.category_id = ct.category_id
-GROUP BY 1,2
-HAVING count(DISTINCT ct.name) >=5
-ORDER BY 1
+--Main Query to retrive customer details, total spend, no.of unique categories they rented from
+
+SELECT c.customer_id,
+    c.first_name, 
+    c.last_name,
+    count(DISTINCT ct.name) AS number_of_categories_rented,
+    SUM(p.amount) AS total_spent
+FROM customer c
+    INNER JOIN rental r ON c.customer_id = r.customer_id
+    INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+    INNER JOIN film_category fc ON i.film_id = fc.film_id
+    INNER JOIN category ct ON fc.category_id = ct.category_id
+    INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2,3
+HAVING COUNT(DISTINCT ct.name) >= 5
+ORDER BY SUM(p.amount) DESC
+LIMIT 5;
+
+--By Applying CTE
+--CTE to calculate no.of.times each customer rented from categories
+WITH customer_data AS (
+  SELECT c.customer_id,
+    c.first_name,c.last_name,
+    count(DISTINCT ct.name) AS number_of_categories_rented
+FROM customer c
+    INNER JOIN rental r ON c.customer_id = r.customer_id
+    INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+    INNER JOIN film_category fc ON i.film_id = fc.film_id
+    INNER JOIN category ct ON fc.category_id = ct.category_id
+    INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2,3
+HAVING count(DISTINCT ct.NAME) >=5
 ),
---CTE to find top total spenders from payments table
-top_spenders AS (
-  SELECT c.customer_id, c.first_name, SUM(p.amount) AS total_spent FROM customer c
-  INNER JOIN payment p ON c.customer_id = p.customer_id
-  GROUP BY 1,2
+spend_criteria AS (
+  SELECT c.customer_id, SUM(p.amount) AS total_spent
+  FROM customer c
+  INNER JOIN rental r ON c.customer_id = r.customer_id --Incase customer has 2 rentals and 1 payment (x Joined using c.customer_id).
+  INNER JOIN payment p ON r.rental_id = p.rental_id
+  GROUP BY 1
 )
+SELECT cs.first_name, cs.last_name, cs.number_of_categories_rented, sc.total_spent
+FROM customer_data cs
+INNER JOIN spend_criteria sc ON cs.customer_id = sc.customer_id
+ORDER BY sc.total_spent DESC
+LIMIT 5;
+
+
+/*Task:
+Find the top 5 actors who:
+Have acted in films from at least 7 different categories.
+Have an average rental rate (across all their films) above the overall average rental rate of all films in the database.
+Output columns: actor_id, first_name, last_name, num_categories (distinct film categories), avg_rental_rate*/
+
+--CTE to filter actors who have acted in atleast 7 different categories
+WITH actor_filter AS (
+    SELECT a.actor_id,
+        a.first_name,
+        a.last_name,
+        count(DISTINCT c.name) AS num_categories
+    FROM actor a
+        INNER JOIN film_actor fa ON a.actor_id = fa.actor_id
+        INNER JOIN film_category fc ON fa.film_id = fc.film_id
+        INNER JOIN category c ON fc.category_id = c.category_id
+    GROUP BY 1,2,3
+    HAVING COUNT(DISTINCT c.name) >= 7
+),
+rental_rate_cte AS (
+    SELECT a.actor_id,
+        AVG(f.rental_rate) AS actor_avg_rental_rate
+    FROM actor a
+        INNER JOIN film_actor fa ON a.actor_id = fa.actor_id
+        INNER JOIN film f ON fa.film_id = f.film_id
+    GROUP BY 1
+    HAVING AVG(f.rental_rate) > (
+            SELECT AVG(f2.rental_rate)
+            FROM film f2
+        )
+)
+SELECT af.actor_id,
+    af.first_name,
+    af.last_name,
+    af.num_categories,
+    ROUND(rrc.actor_avg_rental_rate,2)
+FROM actor_filter af
+    INNER JOIN rental_rate_cte rrc ON af.actor_id = rrc.actor_id
+ORDER BY rrc.actor_avg_rental_rate DESC
+LIMIT 5;
