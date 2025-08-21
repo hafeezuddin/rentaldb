@@ -981,8 +981,7 @@ INNER JOIN available_in_inventory aii ON aarr.film_id = aii.film_id;
 
 
 /*- Find customers who have rented films more than the average number of times but whose 
-total spend is below the average total spend across all customers. */
-
+total spend is below the average total spend across all customers. */s
 --CTE to find customers who rented more than average number of times
 WITH above_avg_rentals AS (
 SELECT c.customer_id,
@@ -1067,7 +1066,7 @@ INNER JOIN rentals_by_customer_id rbci ON wknd_rental.customer_id = rbci.custome
 /* Find the top 5 films that: Have been rented at least 10 times in total. Have the highest average rental duration (in days).
 Show the film title, total number of rentals, and the average rental duration (rounded to 2 decimal places).
 Also display the category of each film.*/
-
+--Main Query
 SELECT f.film_id,
     f.title,
     c.name,
@@ -1094,7 +1093,6 @@ Also have rented films from at least 5 different categories.
 Display for each customer: customer_id,first_name & last_name,total_spent, number_of_categories_rented
 Order the result by total_spent (highest first). */
 --Main Query to retrive customer details, total spend, no.of unique categories they rented from
-
 SELECT c.customer_id,
     c.first_name, 
     c.last_name,
@@ -1110,6 +1108,7 @@ GROUP BY 1,2,3
 HAVING COUNT(DISTINCT ct.name) >= 5
 ORDER BY SUM(p.amount) DESC
 LIMIT 5;
+
 
 --By Applying CTE
 --CTE to calculate no.of.times each customer rented from categories
