@@ -1179,3 +1179,28 @@ FROM actor_filter af
     INNER JOIN rental_rate_cte rrc ON af.actor_id = rrc.actor_id
 ORDER BY rrc.actor_avg_rental_rate DESC
 LIMIT 5;
+
+
+
+/*Find the top 10 customers who meet both of these conditions:
+They have rented at least 20 films in total.
+Their total amount spent (from the payment table) is above the overall average spending of all customers.
+
+For each such customer, display: customer_id, first_name, last_name, total_rentals, total_spent, avg_spent_per_rental (rounded to 2 decimals)
+Order the results by total_spent descending.*/
+
+SELECT c.customer_id, 
+c.first_name, 
+c.last_name, 
+COUNT(r.rental_id), 
+SUM(p.amount),
+ROUND(SUM(p.amount)/COUNT(r.rental_id),2) AS avg_spent_per_rental
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2
+HAVING COUNT(r.rental_id) >= 20 AND 
+SUM(p.amount) > (SELECT AVG(total) 
+                FROM (SELECT p2.customer_id, SUM(p2.amount) AS total 
+                FROM payment p2 
+                GROUP BY p2.customer_id));
