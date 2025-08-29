@@ -1269,3 +1269,34 @@ HAVING COUNT(r.rental_id) > 20 AND
 )
 ORDER BY city_total DESC
 LIMIT 10;
+
+--CTE Version
+WITH city_wise_rental AS (
+SELECT c.city, 
+  a.city_id, 
+  SUM(p.amount) AS city_total, 
+  COUNT(r.rental_id) AS total_rentals, 
+  ROUND(SUM(p.amount)/COUNT(r.rental_id),2) AS avg_spent_per_rental
+  FROM city c
+INNER JOIN address a ON c.city_id = a.city_id
+INNER JOIN customer cus ON a.address_id = cus.address_id
+INNER JOIN rental r ON cus.customer_id = r.customer_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2
+),
+avg_income_per_city AS (
+SELECT AVG(city_avg) AS city_average FROM 
+                    (SELECT SUM(p2.amount) AS city_avg
+                    FROM city c2
+                    INNER JOIN address a2 ON c2.city_id = a2.city_id
+                    INNER JOIN customer cus2 ON a2.address_id = cus2.address_id
+                    INNER JOIN rental r2 ON cus2.customer_id = r2.customer_id
+                    INNER JOIN payment p2 ON r2.rental_id = p2.rental_id
+                    GROUP BY c2.city_id
+                    ) t
+SELECT cwr.city, cwr.city_id, cwr.city_total, cwr.total_rentals, cwr.avg_spent_per_rental
+FROM city_wise_rental cwr
+CROSS JOIN avg_income_per_city aipc
+WHERE cwr.total_rentals > 20 AND cwr.city_total > aipc.city_average;                                        
+
+
