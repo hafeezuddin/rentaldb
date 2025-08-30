@@ -1293,10 +1293,13 @@ SELECT AVG(city_avg) AS city_average FROM
                     INNER JOIN rental r2 ON cus2.customer_id = r2.customer_id
                     INNER JOIN payment p2 ON r2.rental_id = p2.rental_id
                     GROUP BY c2.city_id
-                    ) t
+                    )t
+)
 SELECT cwr.city, cwr.city_id, cwr.city_total, cwr.total_rentals, cwr.avg_spent_per_rental
 FROM city_wise_rental cwr
 CROSS JOIN avg_income_per_city aipc
-WHERE cwr.total_rentals > 20 AND cwr.city_total > aipc.city_average;                                        
+WHERE cwr.total_rentals > 20 AND cwr.city_total > aipc.city_average
+ORDER BY cwr.city_total DESC
+LIMIT 10;                                        
 
 
