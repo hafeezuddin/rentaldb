@@ -1271,6 +1271,7 @@ ORDER BY city_total DESC
 LIMIT 10;
 
 --CTE Version
+--CTE to calculate city_wise data
 WITH city_wise_rental AS (
 SELECT c.city, 
   a.city_id, 
@@ -1284,6 +1285,7 @@ INNER JOIN rental r ON cus.customer_id = r.customer_id
 INNER JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY 1,2
 ),
+--CTE to calculate city average by implementing sub-query
 avg_income_per_city AS (
 SELECT AVG(city_avg) AS city_average FROM 
                     (SELECT SUM(p2.amount) AS city_avg
@@ -1295,6 +1297,9 @@ SELECT AVG(city_avg) AS city_average FROM
                     GROUP BY c2.city_id
                     )t
 )
+--Main query to display cities whose total rentals are greater than 20 
+--And city total revenue is greater than average city revenue using cross join
+
 SELECT cwr.city, cwr.city_id, cwr.city_total, cwr.total_rentals, cwr.avg_spent_per_rental
 FROM city_wise_rental cwr
 CROSS JOIN avg_income_per_city aipc
