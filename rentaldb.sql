@@ -1307,4 +1307,19 @@ WHERE cwr.total_rentals > 20 AND cwr.city_total > aipc.city_average
 ORDER BY cwr.city_total DESC
 LIMIT 10;                                        
 
+/*Find the top 5 customers (by total spend) in each film category.
+For each category, show: Category name, Customer name (first and last), Total amount they’ve spent on rentals in that category, 
+Number of rentals they made in that category
+
+Only include customers who have rented more than 3 films in that category.
+Order the results by category name, then total spent (descending). */
+
+SELECT c.customer_id, c.first_name, c.last_name, cat.name, COUNT(r.rental_id), SUM(p.amount) FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film_category fc ON i.film_id = fc.film_id
+INNER JOIN category cat ON fc.category_id = cat.category_id
+GROUP BY 1,2,3,4
+ORDER BY 1;
 
