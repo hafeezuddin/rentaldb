@@ -1354,4 +1354,16 @@ FROM ranked_customers rc
 WHERE spend_rank <= 5
 ORDER BY rc.name, rc.total_spent DESC;
 
+/*Find the top 3 most-rented films in each category.
+For each film, show: Category name,Film title, Number of times it was rented, Its rank within the category */
+
+SELECT f.film_id, f.title, c.name, COUNT(f.film_id), SUM(f.rental_rate), f.release_year,
+DENSE_RANK() OVER (PARTITION BY c.name ORDER BY COUNT(f.film_id) DESC, SUM(f.rental_rate) DESC, f.title ASC) AS ranked_films
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+INNER JOIN rental r ON i.inventory_id = r.inventory_id
+INNER JOIN film_category fc ON f.film_id = fc.film_id
+INNER JOIN category c ON fc.category_id = c.category_id
+GROUP BY f.film_id, f.title, c.name
+--Tie breaking factor pending
 
