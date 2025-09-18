@@ -1416,3 +1416,13 @@ FROM rental_data rd
 SELECT * FROM ranking_rentals
 WHERE rank <=3;
 
+
+
+/*Find the top 2 cities in each country by number of rentals.
+For each city, show:
+Country name
+City name
+Number of rentals in that city
+Rank of the city within its country
+If multiple cities tie for the same rank, they should all be included. */
+
