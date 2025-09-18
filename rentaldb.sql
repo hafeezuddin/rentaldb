@@ -587,6 +587,7 @@ FROM customer c
   INNER JOIN film f ON i.film_id = f.film_id
   INNER JOIN expensive_movie em ON f.rental_rate = em.max_rate --INNER JOIN CTE filters data by only keeping data that is equal to expensive movie rate
 ORDER BY c.customer_id;
+
 /*Films that have a rental rate higher than the average rental rate (Premium Films) using CTE.*/
 --CTE to calculate average rental rate of films from film table
 WITH avg_price AS (
@@ -601,6 +602,8 @@ FROM film f
   CROSS JOIN avg_price ap --Cross join implementation to compare avgrate with rental rate of film.
 WHERE rental_rate > ap.avg_rate --Filtering films whose rental rate > avgerage rate
 ORDER BY f.film_id;
+
+
 /* Films that have a rental rate higher than the average rental rate (Premium Films) using subquery.*/
 SELECT f.film_id,
   f.title,
@@ -618,6 +621,8 @@ WHERE f.rental_rate > (
     FROM film f
   ) --Comparing and filtering film rental rate with Avg rental rate using subquery
 ORDER BY film_id;
+
+
 /* Customers who have spent more than the average total rental amount across all customers (Premium Customers)*/
 --CTE to calculate total amount spent by each customer. Data retreived from Payments table
 WITH total_spend AS (
@@ -641,6 +646,9 @@ FROM total_spend ts
   INNER JOIN customer c ON ts.customer_id = c.customer_id
 WHERE ts.totspend > avgspendamnt.avg_spend
 ORDER BY ts.totspend DESC;
+
+
+
 /* Top Rented films in each category and Number of times they were rented.*/
 --CTE to find No.of.Times each film is rented/to calculate rental counts per film.
 WITH filmcount AS (
@@ -1387,7 +1395,11 @@ If a customer has ties for their most rented category, include all tied categori
 
 --CTE to calculate rental counts per customer per category
 WITH rental_data AS (
-SELECT c.customer_id, c.first_name, c.last_name, cat.name, COUNT(r.rental_id) rental_count
+SELECT c.customer_id, 
+c.first_name, 
+c.last_name, 
+cat.name, 
+COUNT(r.rental_id) rental_count
 FROM customer c
 INNER JOIN rental r ON c.customer_id = r.customer_id
 INNER JOIN inventory i ON r.inventory_id = i.inventory_id
