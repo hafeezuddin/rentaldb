@@ -1448,3 +1448,36 @@ rc.country_total_rentals,
 ROUND((rc.total_rentals::numeric/country_total_rentals)*100,2) AS city_share_
 FROM ranking_cities rc
 WHERE rc.ranking <=2;
+
+
+/* Find the top 5 customers in each country by total rental amount.
+For each customer, show: Country name, Customer ID and name
+Total amount spent
+Their rank within the country, 
+
+Their percentage share of that country’s rental revenue */
+--CTE to retrive customer details and rank they based on amount they spent.
+WITH customer_ranks AS (
+SELECT c.customer_id,
+CONCAT(c.first_name,' ',c.last_name) AS customer_name,
+ci.city,
+co.country,
+SUM(p.amount) AS total_spent,
+RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank_within_country
+FROM customer c
+INNER JOIN address a ON c.address_id = a.address_id
+INNER JOIN city ci ON a.city_id = ci.city_id
+INNER JOIN country co ON ci.country_id = co.country_id
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2,3,4
+)
+--Main query to filter top customers.
+SELECT cr.customer_id,
+cr.customer_name,
+cr.city,
+cr.Country,
+cr.total_spent,
+cr.rank_within_country
+FROM customer_ranks cr
+WHERE rank_within_country <=5;
