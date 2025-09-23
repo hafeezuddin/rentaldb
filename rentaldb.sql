@@ -5,19 +5,17 @@
 -- =============================================
 -- 1. DATABASE SCHEMA EXPLORATION
 -- =============================================
--- List all tables in public schema
-SELECT *
-FROM information_schema.tables
-WHERE table_schema = 'public';
--- List address table columns
-SELECT column_name,
-  data_type
-FROM information_schema.columns
-WHERE table_name = 'address'
-  AND table_schema = 'public';
+-- List all tables and address columns
+SELECT * FROM information_schema.tables WHERE table_schema = 'public';
+
+SELECT column_name, data_type FROM information_schema.columns 
+WHERE table_name = 'address' AND table_schema = 'public';
+
+
 -- =============================================
 -- 2. BASIC DATA INSPECTION
 -- =============================================
+-- Customer samples, counts, and basic category info
 /* Customer data Sample */
 SELECT *
 FROM customer c
@@ -58,9 +56,14 @@ FROM total_customers
 /* Distinct categories across stores */
 SELECT DISTINCT c.name
 FROM category c;
+
+
+
+
 -- =============================================
 -- 3. CUSTOMER ANALYSIS
 -- =============================================
+-- Customer listings, London customers, active/inactive customers
 /* List of all customers with their full nmes */
 SELECT CONCAT(first_name, ' ', last_name) AS full_name
 FROM customer;
@@ -95,10 +98,15 @@ GROUP BY 1,
   2,
   3
 HAVING COUNT(DISTINCT s.store_id) = 2;
+-- Customer favorite categories
+
+
+
+
 -- =============================================
 -- 4. FILM ANALYSIS  
 -- =============================================
-/* Language of Each film */
+-- Film language distribution
 SELECT f.title AS film_name,
   l.name AS language
 FROM film f
@@ -137,10 +145,14 @@ FROM category c
   INNER JOIN film_category fc ON c.category_id = fc.category_id
 GROUP BY c.name
 HAVING COUNT(*) < 5;
+
+
+
+
 -- =============================================
 -- 5. RENTAL ANALYSIS
 -- =============================================
-/* Rental count by customer */
+-- Rental counts by customer
 SELECT r.customer_id,
   c.first_name,
   c.last_name,
@@ -192,10 +204,14 @@ FROM rental
 GROUP BY hour_of_day
 ORDER BY rental_count DESC
 LIMIT 10;
+
+
+
+
 -- =============================================
 -- 6. FINANCIAL ANALYSIS
 -- =============================================
-/* Top Spending customers for loyalty rewards */
+-- Top spending customers
 SELECT c.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
   SUM(p.amount) AS total_spend
@@ -289,10 +305,14 @@ GROUP BY year,
   month
 ORDER BY year,
   month;
+
+
+
+
 -- =============================================
 -- 7. GEOGRAPHIC ANALYSIS
 -- =============================================
-/* Store information */
+-- Store information
 SELECT s.store_id,
   c.city,
   co.country
@@ -338,9 +358,14 @@ GROUP BY c.city,
 ORDER BY total_revenue DESC
 LIMIT 10;
 --Limiting by top 10 cities
+
+
+
+
 -- =============================================
 -- 8. CATEGORY ANALYSIS
 -- =============================================
+-- Category rental distribution
 /* Films rented out in each category */
 SELECT c.category_id,
   c.name,
@@ -373,9 +398,14 @@ ORDER BY avg_revenue_per_rental DESC;
 -- Comedy Category Commands the highest premium.
 -- Family and Classics have below avg revenue.
 --Sports + Comedy + Sci-Fi deliver 28% of total revenue
+
+
+
+
 -- =============================================
 -- 9. STAFF PERFORMANCE
 -- =============================================
+-- Staff rental metrics
 /* No.of.films rented out by each staff member/Metric to evaluate performance */
 SELECT r.staff_id,
   s.email,
@@ -385,9 +415,14 @@ FROM rental r
 GROUP BY r.staff_id,
   s.email
 ORDER BY rental_count DESC;
+
+
+
+
 -- =============================================
 -- 10. OPERATIONAL ISSUES
 -- =============================================
+-- Late return analysis
 /* Query to extract customers who return the rented films late using the date operations */
 SELECT r.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -418,11 +453,13 @@ FROM customer c
   JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.return_date IS NULL;
 --Filtering customers whose returned date is Null - Unreturned films.
+
+
+
 -- =============================================
 -- 11. TEMPORAL TRENDS
 -- =============================================
-/* Monthly rental trends */
---Rental data month and year wise.
+-- Monthly rental patterns
 SELECT TO_CHAR(rental_date, 'MM') AS month,
   EXTRACT(
     YEAR
@@ -491,9 +528,13 @@ catrevenue AS (
 SELECT *
 FROM catrevenue
 ORDER BY revenue_per_cat DESC;
+
+
+
 -- =============================================
 -- 12. PREMIUM CONTENT ANALYSIS
 -- =============================================
+-- Premium customer identification
 /* Customers renting premium films */
 --CTE to filter films which are most expensive
 WITH premium_films AS (
@@ -541,6 +582,7 @@ FROM customer c
 WHERE f.rental_rate = mr.max_rate
 ORDER BY c.first_name,
   c.last_name;
+-- Premium film rentals
 /*Top rented films per category*/
 --CTE to calculate how many times each film is rented along with its category
 WITH film_rentals AS (
@@ -802,7 +844,7 @@ above_avg_spend AS (
       SELECT AVG(tot_spend)
       FROM (
           SELECT SUM(amount) AS tot_spend
-          FROM payment p
+          FROM payment
           GROUP BY customer_id
         )
     )
@@ -866,7 +908,7 @@ rental_frequency AS (
 --CTE to get available inventory
 available_inventory AS (
   SELECT DISTINCT f.film_id
-  FROM film f --Replace with * from detailed idea
+  FROM film f --Replace with * for detailed idea
     INNER JOIN inventory i ON f.film_id = i.film_id
     LEFT JOIN rental r ON i.inventory_id = r.inventory_id
     AND return_date IS NULL
@@ -1384,7 +1426,7 @@ INNER JOIN inventory i ON f.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
 INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category c ON fc.category_id = c.category_id
-GROUP BY f.film_id, f.title, c.name
+GROUP BY f.film_id, f.title, c.name, f.release_year
 )
 SELECT fd.film_id, 
 fd.title, 
