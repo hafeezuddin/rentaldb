@@ -1455,70 +1455,89 @@ For each customer, show: Country name, Customer ID and name
 Total amount spent
 Their rank within the country, 
 Their percentage share of that country’s rental revenue */
---CTE to retrive customer details and rank they based on amount they spent.
+
+-- CTE to retrieve customer details and rank them by amount spent within each country
 WITH customer_ranks AS (
-SELECT c.customer_id,
-CONCAT(c.first_name,' ',c.last_name) AS customer_name,
-ci.city,
-co.country,
-co.country_id,
-SUM(p.amount) AS total_spent,
-RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank_within_country
-FROM customer c
-INNER JOIN address a ON c.address_id = a.address_id
-INNER JOIN city ci ON a.city_id = ci.city_id
-INNER JOIN country co ON ci.country_id = co.country_id
-INNER JOIN rental r ON c.customer_id = r.customer_id
-INNER JOIN payment p ON r.rental_id = p.rental_id
-GROUP BY 1,2,3,4,5
+  SELECT 
+    c.customer_id,
+    CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
+    ci.city,
+    co.country,
+    co.country_id,
+    SUM(p.amount) AS total_spent,
+    RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank_within_country
+  FROM customer c
+    INNER JOIN address a ON c.address_id = a.address_id
+    INNER JOIN city ci ON a.city_id = ci.city_id
+    INNER JOIN country co ON ci.country_id = co.country_id
+    INNER JOIN rental r ON c.customer_id = r.customer_id
+    INNER JOIN payment p ON r.rental_id = p.rental_id
+  GROUP BY 1,2,3,4,5
 ),
+-- CTE to calculate total rental revenue for each country
 country_totals AS (
-  SELECT co2.country, co2.country_id,
-  SUM(p2.amount) AS country_total
+  SELECT 
+    co2.country, 
+    co2.country_id,
+    SUM(p2.amount) AS country_total
   FROM country co2
-  INNER JOIN city ci2 ON co2.country_id = ci2.country_id
-  INNER JOIN address a2 ON ci2.city_id = a2.city_id
-  INNER JOIN customer c2 ON a2.address_id = c2.address_id
-  INNER JOIN rental r2 ON c2.customer_id = r2.customer_id
-  INNER JOIN payment p2 ON r2.rental_id = p2.rental_id
+    INNER JOIN city ci2 ON co2.country_id = ci2.country_id
+    INNER JOIN address a2 ON ci2.city_id = a2.city_id
+    INNER JOIN customer c2 ON a2.address_id = c2.address_id
+    INNER JOIN rental r2 ON c2.customer_id = r2.customer_id
+    INNER JOIN payment p2 ON r2.rental_id = p2.rental_id
   GROUP BY 1,2
-  )
---Main query to filter top customers.
-SELECT cr.customer_id,
-cr.customer_name,
-cr.city,
-cr.Country,
-cr.total_spent,
-cr.rank_within_country,
-ct.country_total,
-ROUND((cr.total_spent/ct.country_total)*100,2) AS percentage_share
+)
+-- Main query: Top 5 customers per country, their spend, rank, and percentage share of country revenue
+SELECT 
+  cr.customer_id,
+  cr.customer_name,
+  cr.city,
+  cr.country,
+  cr.total_spent,
+  cr.rank_within_country,
+  ct.country_total,
+  ROUND((cr.total_spent / ct.country_total) * 100, 2) AS percentage_share
 FROM customer_ranks cr
-INNER JOIN country_totals ct ON cr.country_id = ct.country_id
-WHERE rank_within_country <=5;
+  INNER JOIN country_totals ct ON cr.country_id = ct.country_id
+WHERE cr.rank_within_country <= 5;
 
 --Method/Solution 2: 
-/* Find the top 5 customers in each country by total rental amount.
-For each customer, show: Country name, Customer ID and name
-Total amount spent
-Their rank within the country, 
-Their percentage share of that country’s rental revenue */
+-- =============================================
+-- Top 5 Customers in Each Country by Total Rental Amount
+-- For each customer: Country name, Customer ID, City, Total amount spent,
+-- Their rank within the country, Their percentage share of that country’s rental revenue
+-- =============================================
+
+-- CTE to aggregate customer spend and calculate country totals and share
 WITH customer_data AS (
-SELECT c.customer_id, 
-ci.city, 
-co.country, 
-SUM(p.amount) AS total_spent,
---This calculation nested aggregate function is illegal in most databases.
-SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum,
-RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank,
-ROUND((SUM(p.amount)/SUM(SUM(p.amount)) OVER (PARTITION BY co.country))*100,2) AS share
-FROM payment p
-INNER JOIN rental r ON p.rental_id = r.rental_id
-INNER JOIN customer c ON r.customer_id = c.customer_id
-INNER JOIN address a ON c.address_id = a.address_id
-INNER JOIN city ci ON a.city_id = ci.city_id
-INNER JOIN country co ON ci.country_id = co.country_id
-GROUP BY 1,2,3
+  SELECT 
+    c.customer_id, 
+    ci.city, 
+    co.country, 
+    SUM(p.amount) AS total_spent, -- Total spent by customer
+    SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum, -- Total spent in country
+    RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank, -- Rank within country
+    ROUND((SUM(p.amount) / SUM(SUM(p.amount)) OVER (PARTITION BY co.country)) * 100, 2) AS share -- % share of country revenue
+  FROM payment p
+    INNER JOIN rental r ON p.rental_id = r.rental_id
+    INNER JOIN customer c ON r.customer_id = c.customer_id
+    INNER JOIN address a ON c.address_id = a.address_id
+    INNER JOIN city ci ON a.city_id = ci.city_id
+    INNER JOIN country co ON ci.country_id = co.country_id
+  GROUP BY c.customer_id, ci.city, co.country
 )
-SELECT cd.customer_id, cd.city, cd.country, cd.total_spent, cd.country_sum, cd.rank, cd.share
+-- Main query: Filter top 5 customers per country
+SELECT 
+  cd.customer_id, 
+  cd.city, 
+  cd.country, 
+  cd.total_spent, 
+  cd.country_sum, 
+  cd.rank, 
+  cd.share
 FROM customer_data cd
-WHERE cd.rank<=5;
+WHERE cd.rank <= 5
+ORDER BY cd.country, cd.rank;
+
+
