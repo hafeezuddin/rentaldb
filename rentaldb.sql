@@ -1496,4 +1496,5 @@ FROM customer_ranks cr
 INNER JOIN country_totals ct ON cr.country_id = ct.country_id
 WHERE rank_within_country <=5;
 
---Method/Solution 2:
+--Method/Solution 2: 
+SELECT * FROM payment;
