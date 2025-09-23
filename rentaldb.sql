@@ -1497,4 +1497,28 @@ INNER JOIN country_totals ct ON cr.country_id = ct.country_id
 WHERE rank_within_country <=5;
 
 --Method/Solution 2: 
-SELECT * FROM payment;
+/* Find the top 5 customers in each country by total rental amount.
+For each customer, show: Country name, Customer ID and name
+Total amount spent
+Their rank within the country, 
+Their percentage share of that country’s rental revenue */
+WITH customer_data AS (
+SELECT c.customer_id, 
+ci.city, 
+co.country, 
+SUM(p.amount) AS total_spent,
+--This calculation nested aggregate function is illegal in most databases.
+SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum,
+RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank,
+ROUND((SUM(p.amount)/SUM(SUM(p.amount)) OVER (PARTITION BY co.country))*100,2) AS share
+FROM payment p
+INNER JOIN rental r ON p.rental_id = r.rental_id
+INNER JOIN customer c ON r.customer_id = c.customer_id
+INNER JOIN address a ON c.address_id = a.address_id
+INNER JOIN city ci ON a.city_id = ci.city_id
+INNER JOIN country co ON ci.country_id = co.country_id
+GROUP BY 1,2,3
+)
+SELECT cd.customer_id, cd.city, cd.country, cd.total_spent, cd.country_sum, cd.rank, cd.share
+FROM customer_data cd
+WHERE cd.rank<=5;
