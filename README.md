@@ -1,9 +1,9 @@
-📄 DVD Rental Database Analysis – SQL Script
-📌 Overview
+DVD Rental Database Analysis – SQL Script
+Overview
 This SQL script performs a comprehensive analysis of the DVD Rental Sample Database, covering schema exploration, customer trends, inventory management, rental patterns, revenue insights, and staff performance.
 It is structured into 12 sections, each focusing on a different analytical objective, with clear comments for easy navigation.
 
-🛠 Requirements
+Requirements
 Database: PostgreSQL
 Sample DB: DVD Rental Database (can be restored from .tar file)
 Tool: pgAdmin, psql CLI, or Visual Studio Code with PostgreSQL extension
@@ -25,13 +25,13 @@ Tool: pgAdmin, psql CLI, or Visual Studio Code with PostgreSQL extension
 | **12**      | Advanced Queries            | Finds “Films at Risk of Being Overlooked” – high rental rate, low rentals, and currently in stock. |
 
 
-📊 Key Analytical Highlights
+Key Analytical Highlights
 Revenue Hotspots – Pinpoints cities, stores, and categories driving the most revenue.
 Customer Engagement – Identifies high-value customers and churn risks.
 Inventory Gaps – Finds films that are in stock but rarely rented.
 Seasonality – Detects peak and off-peak rental months.
 Operational Insights – Evaluates staff contribution to rentals and revenue.
 
-📄 License
+License
 This project is licensed under the MIT License – you are free to use, modify, and distribute with attribution.
 
