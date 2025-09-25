@@ -2,9 +2,7 @@
  COMPLETE DVD Rental Database Analysis Script
  Author: Khaja Hafeezuddin Shaik
  ============================================= */
--- =============================================
--- 1. DATABASE SCHEMA EXPLORATION
--- =============================================
+
 -- List all tables and address columns
 SELECT * FROM information_schema.tables WHERE table_schema = 'public';
 
@@ -12,15 +10,13 @@ SELECT column_name, data_type FROM information_schema.columns
 WHERE table_name = 'address' AND table_schema = 'public';
 
 
--- =============================================
--- 2. BASIC DATA INSPECTION
--- =============================================
--- Customer samples, counts, and basic category info
 /* Customer data Sample */
 SELECT *
 FROM customer c
 ORDER BY customer_id
 LIMIT 5;
+
+
 /* Count of Total distinct customers, total films, total rentals */
 --Main Query with subquery to display Distinct customers, rentals and films
 SELECT (
@@ -53,26 +49,25 @@ FROM total_customers
   CROSS JOIN total_films,
   total_rentals;
 --Cross Join to join single value tables.
+
+
 /* Distinct categories across stores */
 SELECT DISTINCT c.name
 FROM category c;
 
 
 
-
--- =============================================
--- 3. CUSTOMER ANALYSIS
--- =============================================
--- Customer listings, London customers, active/inactive customers
 /* List of all customers with their full nmes */
 SELECT CONCAT(first_name, ' ', last_name) AS full_name
 FROM customer;
+
 /* Customers who are from London city */
 SELECT CONCAT(first_name, ' ', last_name) AS customer_name
 FROM customer c
   JOIN address a ON c.address_id = a.address_id
   JOIN city ci ON a.city_id = ci.city_id
 WHERE ci.city = 'London';
+
 /* List of active customers who rented atleast once */
 SELECT DISTINCT r.customer_id AS customer_id,
   c.first_name,
@@ -80,12 +75,14 @@ SELECT DISTINCT r.customer_id AS customer_id,
 FROM rental r
   JOIN customer c ON r.customer_id = c.customer_id
 ORDER BY r.customer_id;
+
 /* List of customers who never rented a film */
 SELECT c.customer_id
 FROM customer c
   LEFT JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.customer_id IS NULL
 LIMIT 5;
+
 /* Customers renting from multiple stores */
 SELECT c.customer_id,
   c.first_name,
@@ -94,23 +91,17 @@ FROM customer c
   INNER JOIN rental r ON c.customer_id = r.customer_id
   INNER JOIN staff s ON r.staff_id = s.staff_id
 WHERE s.store_id IN (1, 2)
-GROUP BY 1,
-  2,
-  3
+GROUP BY 1,2,3
 HAVING COUNT(DISTINCT s.store_id) = 2;
--- Customer favorite categories
 
 
 
-
--- =============================================
--- 4. FILM ANALYSIS  
--- =============================================
 -- Film language distribution
 SELECT f.title AS film_name,
   l.name AS language
 FROM film f
   JOIN language l ON f.language_id = l.language_id;
+
 /* No. of films in each language */
 SELECT l.name AS film_language,
   COUNT(*) AS no_of_films
@@ -118,18 +109,21 @@ FROM language l
   INNER JOIN film f ON l.language_id = f.language_id
 GROUP BY 1
 ORDER BY no_of_films DESC;
+
 /* List of films which are not in inventory */
 SELECT f.film_id,
   f.title
 FROM film f
   LEFT JOIN inventory i ON f.film_id = i.film_id
 WHERE i.inventory_id IS NULL;
+
 /* Films by rating (PG-13/NC-17/R/PG/G)*/
 SELECT f.rating AS film_rating,
   COUNT(*) AS film_count
 FROM film f
 GROUP BY f.rating
 ORDER BY film_count DESC;
+
 /* No.of films in each category. Ordered by category having most no of films */
 SELECT c.name AS category_name,
   COUNT(*) AS film_count
@@ -138,6 +132,7 @@ FROM category c
   JOIN film f ON fc.film_id = f.film_id
 GROUP BY c.name
 ORDER BY film_count DESC;
+
 /* Categories with less than 5 films in them */
 SELECT c.name AS category_name,
   COUNT(*) AS no_of_films
@@ -147,12 +142,7 @@ GROUP BY c.name
 HAVING COUNT(*) < 5;
 
 
-
-
--- =============================================
--- 5. RENTAL ANALYSIS
--- =============================================
--- Rental counts by customer
+/* Rental counts by customer */
 SELECT r.customer_id,
   c.first_name,
   c.last_name,
@@ -163,6 +153,7 @@ GROUP BY r.customer_id,
   c.first_name,
   c.last_name
 ORDER BY rental_count DESC;
+
 /* Customers who rented the films the most */
 SELECT c.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -173,6 +164,7 @@ GROUP BY c.customer_id,
   customer_name
 ORDER BY total_rentals DESC
 LIMIT 5;
+
 /* How many times each film is rented out/ Top renting films */
 SELECT i.film_id,
   COUNT(*) AS rental_count
@@ -180,6 +172,7 @@ FROM inventory i
   JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY i.film_id
 ORDER BY rental_count DESC;
+
 /* Calculating Average duration for each film */
 SELECT f.film_id,
   f.title,
@@ -194,6 +187,7 @@ WHERE r.return_date IS NOT NULL
 GROUP BY f.film_id,
   f.title
 ORDER BY avg_rental_days DESC;
+
 /* Hours which are busiest/Most rentals */
 SELECT EXTRACT(
     HOUR
@@ -206,11 +200,6 @@ ORDER BY rental_count DESC
 LIMIT 10;
 
 
-
-
--- =============================================
--- 6. FINANCIAL ANALYSIS
--- =============================================
 -- Top spending customers
 SELECT c.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -221,14 +210,16 @@ GROUP BY c.customer_id,
   customer_name
 ORDER BY total_spend DESC
 LIMIT 5;
+
 /* Total amount spent by a customer across all transactions (Life time value) */
 SELECT p.customer_id,
   SUM(p.amount) AS lifetime_value
 FROM payment p
 GROUP BY p.customer_id
 ORDER BY lifetime_value DESC;
+
 /* Average revenue per customer */
--- Option 1: Subquery
+-- Subquery Version
 SELECT CONCAT(ROUND(AVG(total_revenue), 2), '$') AS avg_revenue_per_customer --Main query to calculate avg revenue per customer
 FROM (
     SELECT customer_id,
@@ -246,6 +237,7 @@ WITH customer_revenue AS (
 )
 SELECT CONCAT(ROUND(AVG(total_revenue), 2), '$') AS avg_revenue_per_customer
 FROM customer_revenue;
+
 /* Customers spending more than average spend */
 --CTE to calculate amount spend by each customer across multiple rental transactions.
 WITH customer_spending AS (
@@ -281,6 +273,8 @@ FROM customer_spending cs
   CROSS JOIN avg_spending --Ideal when comparing one value to many rows
 WHERE cs.total_spent > avg_spending.avg_spent -- Filtering
 ORDER BY cs.customer_id;
+
+
 /* Total revenue generated till date */
 SELECT CONCAT(SUM(amount), '$') AS total_revenue
 FROM payment;
@@ -306,13 +300,7 @@ GROUP BY year,
 ORDER BY year,
   month;
 
-
-
-
--- =============================================
--- 7. GEOGRAPHIC ANALYSIS
--- =============================================
--- Store information
+/* Store information */
 SELECT s.store_id,
   c.city,
   co.country
@@ -320,6 +308,7 @@ FROM store s
   JOIN address a ON s.address_id = a.address_id
   JOIN city c ON a.city_id = c.city_id
   JOIN country co ON c.country_id = co.country_id;
+
 /* Rental trends by location (City, Country), Year and Month */
 SELECT co.country,
   c.city,
@@ -342,6 +331,8 @@ GROUP BY co.country,
   year,
   month
 ORDER BY rental_count DESC;
+
+
 /* Top revenue generating cities */
 SELECT c.city,
   EXTRACT(
@@ -360,12 +351,6 @@ LIMIT 10;
 --Limiting by top 10 cities
 
 
-
-
--- =============================================
--- 8. CATEGORY ANALYSIS
--- =============================================
--- Category rental distribution
 /* Films rented out in each category */
 SELECT c.category_id,
   c.name,
@@ -377,6 +362,8 @@ FROM category c
 GROUP BY c.category_id,
   c.name
 ORDER BY rental_count DESC;
+
+
 /* Finding categories which are more profitable */
 /* Main query to calculate rentals in each movie category, 
  revenue generated by them and 
@@ -400,12 +387,6 @@ ORDER BY avg_revenue_per_rental DESC;
 --Sports + Comedy + Sci-Fi deliver 28% of total revenue
 
 
-
-
--- =============================================
--- 9. STAFF PERFORMANCE
--- =============================================
--- Staff rental metrics
 /* No.of.films rented out by each staff member/Metric to evaluate performance */
 SELECT r.staff_id,
   s.email,
@@ -417,12 +398,6 @@ GROUP BY r.staff_id,
 ORDER BY rental_count DESC;
 
 
-
-
--- =============================================
--- 10. OPERATIONAL ISSUES
--- =============================================
--- Late return analysis
 /* Query to extract customers who return the rented films late using the date operations */
 SELECT r.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
@@ -439,6 +414,8 @@ GROUP BY 1,
   3
 ORDER BY late_returns DESC
 LIMIT 10;
+
+
 /* Unreturned films*/
 SELECT CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
   --Concating firstname and lastname into customername
@@ -454,12 +431,7 @@ FROM customer c
 WHERE r.return_date IS NULL;
 --Filtering customers whose returned date is Null - Unreturned films.
 
-
-
--- =============================================
--- 11. TEMPORAL TRENDS
--- =============================================
--- Monthly rental patterns
+/* Monthly rental patterns */
 SELECT TO_CHAR(rental_date, 'MM') AS month,
   EXTRACT(
     YEAR
@@ -467,9 +439,10 @@ SELECT TO_CHAR(rental_date, 'MM') AS month,
   ) AS year,
   COUNT(*) AS rental_count
 FROM rental
-GROUP BY 1,
-  2
+GROUP BY 1,2
 ORDER BY rental_count DESC;
+
+
 /* Category popularity by year/month */
 --Main query to calculate no.of.rentals in each category, month and year wise.
 SELECT TO_CHAR(r.rental_date, 'YYYY') AS year,
@@ -480,21 +453,18 @@ FROM category c
   JOIN film_category fc ON c.category_id = fc.category_id
   JOIN inventory i ON fc.film_id = i.film_id
   JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY 1,
-  2,
-  3
+GROUP BY 1,2,3
 ORDER BY rental_count DESC;
 
 
 /* Categorize Films by Rental Performance
- Objective:
  Classify films into performance tiers based on rental frequency and compare their revenue contribution.
- 
  Requirements:
  Use a CASE statement to categorize films as:
  "High Demand": Rented 30+ times | "Medium Demand": Rented 15-29 times | "Low Demand": Rented <15 times
  For each category, calculate: Number of films, Total revenue generated, Average rental rate
  Sort results by revenue contribution (highest to lowest). */
+
 --CTE to categorize films based on no.of.times film was rented
 WITH demandcat AS (
   SELECT f.film_id,
@@ -530,11 +500,6 @@ FROM catrevenue
 ORDER BY revenue_per_cat DESC;
 
 
-
--- =============================================
--- 12. PREMIUM CONTENT ANALYSIS
--- =============================================
--- Premium customer identification
 /* Customers renting premium films */
 --CTE to filter films which are most expensive
 WITH premium_films AS (
@@ -551,6 +516,7 @@ FROM customer c
   JOIN inventory i ON r.inventory_id = i.inventory_id
   JOIN premium_films pf ON i.film_id = pf.film_id --Joining CTE table to filter records using premium_films CTE
 ORDER BY c.customer_id;
+
 --Without subquery
 WITH maxrate AS (
   SELECT MAX(rental_rate) AS max_rate
@@ -567,6 +533,7 @@ FROM customer c
 WHERE f.rental_rate = mr.max_rate
 ORDER BY c.first_name,
   c.last_name;
+
 WITH maxrate AS (
   SELECT MAX(rental_rate) AS max_rate
   FROM film f
@@ -582,6 +549,8 @@ FROM customer c
 WHERE f.rental_rate = mr.max_rate
 ORDER BY c.first_name,
   c.last_name;
+
+
 -- Premium film rentals
 /*Top rented films per category*/
 --CTE to calculate how many times each film is rented along with its category
@@ -614,6 +583,8 @@ FROM film_rentals fr
   JOIN category_max cm ON fr.category = cm.category
   AND fr.rental_count = cm.max_rentals --Joining category_max CTE AND Film_Rental CTE & Filtering to extract most rented films in each category
 ORDER BY fr.category;
+
+
 /* Find customers who rented the most expensive movie (CTE)*/
 --CTE to extract expensive movie rate from film table.
 WITH expensive_movie AS (
@@ -630,6 +601,7 @@ FROM customer c
   INNER JOIN expensive_movie em ON f.rental_rate = em.max_rate --INNER JOIN CTE filters data by only keeping data that is equal to expensive movie rate
 ORDER BY c.customer_id;
 
+
 /*Films that have a rental rate higher than the average rental rate (Premium Films) using CTE.*/
 --CTE to calculate average rental rate of films from film table
 WITH avg_price AS (
@@ -644,6 +616,7 @@ FROM film f
   CROSS JOIN avg_price ap --Cross join implementation to compare avgrate with rental rate of film.
 WHERE rental_rate > ap.avg_rate --Filtering films whose rental rate > avgerage rate
 ORDER BY f.film_id;
+
 
 
 /* Films that have a rental rate higher than the average rental rate (Premium Films) using subquery.*/
