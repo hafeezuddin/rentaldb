@@ -1636,3 +1636,21 @@ FROM revenue_cal rc
 ORDER BY rc.total_revenue DESC
 LIMIT 5;
 
+--Window_function_version
+WITH revenue_cal AS (
+  SELECT DATE_TRUNC('Month', r.rental_date) AS year_month, --Truncate rental_date to month
+  COUNT(r.rental_id) AS no_of_rentals,                     --Counting no.of.rentals in a given month
+  SUM(p.amount) AS revenue,                                --Counting revenue in each given month
+  SUM(SUM(p.amount)) OVER() AS total_revenue               --Counting total revenue generated till date (May not work in all db's)
+  FROM rental r
+  INNER JOIN payment p ON r.rental_id = p.rental_id
+  GROUP BY 1
+)
+SELECT 
+TO_CHAR(rc.year_month, 'YYYY-MM') AS ym,          --Year Month format
+TO_CHAR(rc.year_month, 'MON-YYYY') my_des,        --Month Year format description
+ROUND((rc.revenue/rc.total_revenue)*100,2) AS percentage,  --Percentage/Share in total revenue
+rc.no_of_rentals, rc.revenue, rc.total_revenue
+FROM revenue_cal rc
+ORDER BY rc.revenue DESC
+LIMIT 5;
