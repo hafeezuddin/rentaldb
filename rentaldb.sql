@@ -1532,16 +1532,16 @@ WHERE cr.rank_within_country <= 5;
 -- Their rank within the country, Their percentage share of that country’s rental revenue
 -- =============================================
 
--- CTE to aggregate customer spend and calculate country totals and share
+-- CTE to aggregate customer spend, country totals, rank, and share within each country
 WITH customer_data AS (
   SELECT 
     c.customer_id, 
     ci.city, 
     co.country, 
-    SUM(p.amount) AS total_spent, -- Total spent by customer
-    SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum, -- Total spent in country
-    RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank, -- Rank within country
-    ROUND((SUM(p.amount) / SUM(SUM(p.amount)) OVER (PARTITION BY co.country)) * 100, 2) AS share -- % share of country revenue
+    SUM(p.amount) AS total_spent, -- Total amount spent by the customer
+    SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum, -- Total amount spent in the country
+    RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank, -- Customer's rank within the country by total spent
+    ROUND((SUM(p.amount) / SUM(SUM(p.amount)) OVER (PARTITION BY co.country)) * 100, 2) AS share -- Percentage share of country revenue
   FROM payment p
     INNER JOIN rental r ON p.rental_id = r.rental_id
     INNER JOIN customer c ON r.customer_id = c.customer_id
@@ -1550,7 +1550,7 @@ WITH customer_data AS (
     INNER JOIN country co ON ci.country_id = co.country_id
   GROUP BY c.customer_id, ci.city, co.country
 )
--- Main query: Filter top 5 customers per country
+-- Main query: Filter top 5 customers per country and show their spend, rank, and share
 SELECT 
   cd.customer_id, 
   cd.city, 
@@ -1603,3 +1603,36 @@ fd.total_rentals,
 fd.rank
 FROM film_data fd
 WHERE rank<=3;
+
+
+/*Find the top 5 months (across all years) with the highest rental activity.
+For each of these months, show: Year and Month (e.g., 2021-05), Total number of rentals, Total revenue collected (from payment.amount)
+The percentage share of revenue compared to the overall revenue.*/
+
+-- CTE to calculate total rentals and revenue per month
+WITH revenue_cal AS (
+  SELECT
+    DATE_TRUNC('Month', r.rental_date) AS rental_month, -- Truncate rental_date to month
+    COUNT(r.rental_id) AS no_of_rentals,                -- Number of rentals in the month
+    SUM(p.amount) AS total_revenue                      -- Total revenue in the month
+  FROM rental r
+    INNER JOIN payment p ON r.rental_id = p.rental_id
+  GROUP BY 1
+),
+-- CTE to calculate overall total revenue
+total_rev_cal AS (
+  SELECT SUM(p.amount) AS tot_rev
+  FROM payment p
+)
+-- Main query: Top 5 months by revenue, with percentage of total revenue
+SELECT 
+  TO_CHAR(rc.rental_month, 'YYYY-MM') AS YEAR_Month,         -- Year-Month format
+  TO_CHAR(rc.rental_month, 'MON-YYYY') AS Mon_Desc,          -- Month-Year description
+  rc.no_of_rentals,                                          -- Number of rentals in the month
+  rc.total_revenue,                                          -- Total revenue in the month
+  ROUND((rc.total_revenue/rvc.tot_rev)*100,2) AS percentage  -- Percentage of total revenue
+FROM revenue_cal rc
+  CROSS JOIN total_rev_cal rvc
+ORDER BY rc.total_revenue DESC
+LIMIT 5;
+
