@@ -1659,3 +1659,27 @@ rc.no_of_rentals, rc.revenue, rc.total_revenue
 FROM revenue_cal rc
 ORDER BY rc.revenue DESC
 LIMIT 5;
+
+
+/* Find the cumulative monthly revenue growth over time.
+For each month, show: Year-Month, Number of rentals, Monthly revenue
+Cumulative revenue up to that month
+Percentage growth compared to the previous month */
+WITH revenue AS (
+SELECT TO_CHAR(DATE_TRUNC('MONTH', r.rental_date), 'YYYY-MM') AS Month_Year,
+SUM(p.amount) AS revenue,
+COUNT(r.rental_id) AS rentals
+FROM rental r
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1
+)
+SELECT r.Month_Year, 
+r.revenue,
+LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS lag,
+r.revenue - LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS diff_in_rev,
+SUM(r.revenue) OVER (ORDER BY r.Month_Year) cumm_rev,
+ROUND((r.revenue - LAG(r.revenue) 
+        OVER(ORDER BY r.Month_Year))/LAG(r.revenue) OVER(ORDER BY r.Month_Year)*100,2) AS percentage_change,
+r.rentals
+FROM revenue r;
+
