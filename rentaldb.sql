@@ -31,6 +31,7 @@ SELECT (
     SELECT COUNT(DISTINCT rental_date)
     FROM rental
   ) AS total_rentals;
+
 --Using CTE & CROSS JOIN
 WITH total_customers AS (
   SELECT COUNT(DISTINCT customer_id) AS total_customers
@@ -58,11 +59,15 @@ FROM category c;
 
 
 /* List of all customers with their full nmes */
-SELECT CONCAT(first_name, ' ', last_name) AS full_name
-FROM customer;
+SELECT 
+  CONCAT(c.first_name,' ',c.last_name) AS full_name,
+  c.email
+FROM customer c
+ORDER BY c.first_name;
+
 
 /* Customers who are from London city */
-SELECT CONCAT(first_name, ' ', last_name) AS customer_name
+SELECT CONCAT(c.first_name,' ',c.last_name) AS customer_name
 FROM customer c
   JOIN address a ON c.address_id = a.address_id
   JOIN city ci ON a.city_id = ci.city_id
@@ -1641,7 +1646,7 @@ WITH revenue_cal AS (
   SELECT DATE_TRUNC('Month', r.rental_date) AS year_month, --Truncate rental_date to month
   COUNT(r.rental_id) AS no_of_rentals,                     --Counting no.of.rentals in a given month
   SUM(p.amount) AS revenue,                                --Counting revenue in each given month
-  SUM(SUM(p.amount)) OVER() AS total_revenue               --Counting total revenue generated till date (May not work in all db's)
+  SUM(SUM(p.amount)) OVER() AS total_revenue               --Counting total global revenue generated till date (May not work in all db's)
   FROM rental r
   INNER JOIN payment p ON r.rental_id = p.rental_id
   GROUP BY 1
