@@ -1665,21 +1665,40 @@ LIMIT 5;
 For each month, show: Year-Month, Number of rentals, Monthly revenue
 Cumulative revenue up to that month
 Percentage growth compared to the previous month */
+-- CTE to calculate monthly revenue and rental counts
 WITH revenue AS (
-SELECT TO_CHAR(DATE_TRUNC('MONTH', r.rental_date), 'YYYY-MM') AS Month_Year,
-SUM(p.amount) AS revenue,
-COUNT(r.rental_id) AS rentals
-FROM rental r
-INNER JOIN payment p ON r.rental_id = p.rental_id
-GROUP BY 1
+  SELECT 
+    TO_CHAR(DATE_TRUNC('MONTH', r.rental_date), 'YYYY-MM') AS Month_Year, -- Format rental_date as Year-Month
+    SUM(p.amount) AS revenue,                                             -- Total revenue for the month
+    COUNT(r.rental_id) AS rentals                                         -- Number of rentals for the month
+  FROM rental r
+    INNER JOIN payment p ON r.rental_id = p.rental_id
+  GROUP BY 1
 )
-SELECT r.Month_Year, 
-r.revenue,
-LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS lag,
-r.revenue - LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS diff_in_rev,
-SUM(r.revenue) OVER (ORDER BY r.Month_Year) cumm_rev,
-ROUND((r.revenue - LAG(r.revenue) 
-        OVER(ORDER BY r.Month_Year))/LAG(r.revenue) OVER(ORDER BY r.Month_Year)*100,2) AS percentage_change,
-r.rentals
+SELECT 
+  r.Month_Year, 
+  r.revenue,
+  LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS lag, -- Previous month's revenue
+  r.revenue - LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS diff_in_rev, -- Revenue difference from previous month
+  SUM(r.revenue) OVER (ORDER BY r.Month_Year) AS cumm_rev, -- Cumulative revenue up to this month
+  ROUND(
+    (r.revenue - LAG(r.revenue) OVER(ORDER BY r.Month_Year)) 
+    / NULLIF(LAG(r.revenue) OVER(ORDER BY r.Month_Year), 0) * 100, 2
+  ) AS percentage_change, -- Percentage growth compared to previous month
+  r.rentals -- Number of rentals in the month
 FROM revenue r;
 
+
+
+/* Find the top 3 highest revenue-generating days in each month.
+For each month, show: Year-Month, Day (date), Daily revenue, Rank of the day within that month by revenue */
+SELECT * FROM (
+SELECT TO_CHAR(DATE_TRUNC('DAY', r.rental_date), 'YYYY-MM-DD') AS date_of_month,
+TO_CHAR(DATE_TRUNC('MONTH', r.rental_date), 'YYYY-MM') AS mon_year,
+SUM(p.amount) AS total_rev_by_date,
+RANK() OVER (PARTITION BY TO_CHAR(DATE_TRUNC('MONTH', r.rental_date), 'YYYY-MM') ORDER BY sum(p.amount) DESC) AS rank_within_month
+FROM rental r
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY date_of_month, mon_year
+) r
+WHERE rank_within_month <=3;
