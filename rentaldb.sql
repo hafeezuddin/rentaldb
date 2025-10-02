@@ -1702,3 +1702,32 @@ INNER JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY date_of_month, mon_year
 ) r
 WHERE rank_within_month <=3;
+
+/*Find the 3 months where revenue grew the fastest compared to the previous month.
+For each month, you need: Total revenue in that month, Cumulative revenue (running total up to that month).
+
+Growth % compared to the previous month.
+Then pick only the top 3 growth months. */
+
+--CTE to find monthly total_revenue
+WITH mon_rev AS (
+SELECT DATE_TRUNC('Month', r.rental_date) AS datemonth,
+SUM(p.amount) AS total_revenue
+FROM rental r
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1
+ORDER BY datemonth
+),
+cumm_rev AS (
+  SELECT m.datemonth AS datemonth2,
+  LAG(total_revenue) OVER (ORDER BY m.datemonth) AS pmr, 
+  SUM(total_revenue) OVER (ORDER BY m.datemonth) AS cummu_rev
+  FROM mon_rev m
+)
+SELECT m.datemonth, m.total_revenue, cr.cummu_rev, cr.pmr
+FROM mon_rev m
+INNER JOIN cumm_rev cr ON m.datemonth = cr.datemonth2;
+
+
+
+
