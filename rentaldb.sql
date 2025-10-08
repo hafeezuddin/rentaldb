@@ -1709,6 +1709,7 @@ WHERE rank_within_month <=3;
 For each month, you need: Total revenue in that month, Cumulative revenue (running total up to that month).
 Growth % compared to the previous month.
 Then pick only the top 3 growth months. */
+
 --CTE to find monthly total_revenue
 WITH mon_rev AS (
 SELECT DATE_TRUNC('Month', r.rental_date) AS datemonth, --Truncates Date upto monthlevel for aggregation task
@@ -1742,4 +1743,17 @@ ORDER BY percentage_change DESC
 LIMIT 3;
 
 
+
+/* A “churn risk” customer is one who hasn’t rented in the last 60 days but had rented at least 5 films before that.*
+
+For each such customer, show: Customer ID & Name, Last rental date, Total amount spent
+Total rentals before their last rental */
+
+--CTE to calculate last rental date
+WITH last_rental_date AS (
+SELECT c.customer_id, CONCAT(c.first_name,'', c.last_name) AS full_name, MAX(r.rental_date) AS last_rental_date
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+GROUP BY 1,2
+),
 
