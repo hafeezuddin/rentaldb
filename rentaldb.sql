@@ -1748,7 +1748,6 @@ LIMIT 3;
 For each such customer, show: Customer ID & Name, Last rental date, Total amount spent
 Total rentals before their last rental */
 --CTE to calculate last rental date
-
 WITH last_rental_date AS (
 SELECT c.customer_id, CONCAT(c.first_name,'', c.last_name) AS full_name, MAX(r.rental_date) AS last_rental_date
 FROM customer c
@@ -1778,3 +1777,35 @@ INNER JOIN inactive_customers ic ON lrd.customer_id = ic.customer_id
 INNER JOIN customer_activity ca ON ic.customer_id = ca.customer_id
 WHERE ca.total_rentals > 5;
 
+
+/* Create a basic system that suggests films to customers based on their rental history and preferences.
+[FOR Customer_id =1] 
+Customer's Favorite Categories:find which film categories they rent most often
+Top Films in Those Categories: Show the most popular films in the customer's favorite categories
+Check which of these recommended films are actually in stock
+Combine all this into a clean list of 10 film recommendations for customer_id = 1 */
+
+--CTE to find most popular category for customer_id = 1
+WITH pop_cat AS (
+SELECT c.customer_id, cat.name, cat.category_id, COUNT(r.rental_id) AS rental_count
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film_category fc ON i.film_id = fc.film_id
+INNER JOIN category cat ON fc.category_id = cat.category_id
+GROUP BY 1,2,3
+HAVING c.customer_id =1
+ORDER BY COUNT(r.rental_id) DESC
+LIMIT 3
+),
+top_films_cat AS (
+  SELECT f.film_id, f.title, fc2.category_id, COUNT(r2.rental_id) total_rentals FROM film f
+  INNER JOIN inventory i2 ON f.film_id = i2.film_id
+  INNER JOIN rental r2 ON i2.inventory_id = r2.inventory_id
+  INNER JOIN film_category fc2 ON f.film_id = fc2.film_id
+  WHERE fc2.category_id IN (SELECT pop_cat.category_id FROM pop_cat)
+  GROUP BY 1,2,3
+  ORDER BY total_rentals DESC
+  LIMIT 100
+)
+SELECT * FROM top_films_cat;
