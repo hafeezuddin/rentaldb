@@ -1840,13 +1840,14 @@ ORDER BY tot_av_inven DESC -- Order by the number of available copies
 LIMIT 10; -- Limit to the top 10 recommendations
 
 
-/*dentify which film categories (like Action, Comedy, etc.) are growing the fastest month-over-month based on total rental revenue.*/
+/*Identify which film categories (like Action, Comedy, etc.) are growing the fastest month-over-month based on total rental revenue.*/
+-- CTE to calculate total monthly revenue for each film category
 WITH cat_stats AS (
 SELECT 
   cat.category_id, 
   cat.name,
-  TO_CHAR(DATE_TRUNC('Month',r.rental_date),'YYYY-MM') AS month,
-  SUM(p.amount) AS total_revenue
+  TO_CHAR(DATE_TRUNC('Month',r.rental_date),'YYYY-MM') AS month, -- Truncate date to month and format as 'YYYY-MM'
+  SUM(p.amount) AS total_revenue -- Calculate total revenue for the category in that month
 FROM category cat
 INNER JOIN film_category fc ON cat.category_id = fc.category_id
 INNER JOIN inventory i ON fc.film_id = i.film_id
@@ -1855,16 +1856,18 @@ INNER JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY 1,2,3
 ORDER BY cat.category_id
 ),
+-- CTE to get the previous month's revenue (pmr) for each category using the LAG window function
 pmr_cal AS (
 SELECT 
   cs.category_id, 
   cs.name, 
   cs.month, 
   cs.total_revenue,
-
+  -- Get the revenue from the previous month within the same category
   LAG(cs.total_revenue) OVER (PARTITION BY cs.category_id ORDER BY cs.month) AS pmr
   FROM cat_stats cs
 ),
+-- CTE to calculate the percentage change in revenue from the previous month
 per_change_cal AS (
   SELECT 
     pmr_cal.category_id, 
@@ -1873,13 +1876,14 @@ per_change_cal AS (
     pmr_cal.total_revenue, 
     pmr_cal.pmr,
     CASE
-      WHEN pmr_cal.pmr IS NULL
+      WHEN pmr_cal.pmr IS NULL -- Handle the first month where there is no previous month data
         THEN 0
       ELSE
-        (pmr_cal.total_revenue - pmr_cal.pmr)/pmr_cal.pmr * 100
+        (pmr_cal.total_revenue - pmr_cal.pmr)/pmr_cal.pmr * 100 -- Calculate percentage growth
       END AS percentage_change
   FROM pmr_cal
 ),
+-- CTE to rank categories within each month based on their percentage growth
 ranking_months AS (
   Select
   pcl.category_id, 
@@ -1888,8 +1892,11 @@ ranking_months AS (
   pcl.total_revenue, 
   pcl.pmr,
   ROUND(pcl.percentage_change,2) AS percentage_change,
+  -- Rank categories by their growth percentage in descending order for each month
   RANK() OVER (PARTITION BY pcl.month ORDER BY ROUND(pcl.percentage_change,2) DESC) AS ranking
 FROM per_change_cal pcl
 )
+-- Final query to select the top-growing category for each month
 SELECT * FROM ranking_months rm
-WHERE rm.percentage_change !=0 AND rm.ranking=1;
+WHERE rm.percentage_change !=0 AND rm.ranking=1; -- Filter for the #1 ranked category with non-zero growth
+
