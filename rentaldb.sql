@@ -1841,13 +1841,12 @@ LIMIT 10; -- Limit to the top 10 recommendations
 
 
 /*Identify which film categories (like Action, Comedy, etc.) are growing the fastest month-over-month based on total rental revenue.*/
--- CTE to calculate total monthly revenue for each film category
 WITH cat_stats AS (
 SELECT 
   cat.category_id, 
   cat.name,
-  TO_CHAR(DATE_TRUNC('Month',r.rental_date),'YYYY-MM') AS month, -- Truncate date to month and format as 'YYYY-MM'
-  SUM(p.amount) AS total_revenue -- Calculate total revenue for the category in that month
+  TO_CHAR(DATE_TRUNC('Month',r.rental_date),'YYYY-MM') AS month,
+  SUM(p.amount) AS total_revenue
 FROM category cat
 INNER JOIN film_category fc ON cat.category_id = fc.category_id
 INNER JOIN inventory i ON fc.film_id = i.film_id
@@ -1856,18 +1855,16 @@ INNER JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY 1,2,3
 ORDER BY cat.category_id
 ),
--- CTE to get the previous month's revenue (pmr) for each category using the LAG window function
 pmr_cal AS (
 SELECT 
   cs.category_id, 
   cs.name, 
   cs.month, 
   cs.total_revenue,
-  -- Get the revenue from the previous month within the same category
+
   LAG(cs.total_revenue) OVER (PARTITION BY cs.category_id ORDER BY cs.month) AS pmr
   FROM cat_stats cs
 ),
--- CTE to calculate the percentage change in revenue from the previous month
 per_change_cal AS (
   SELECT 
     pmr_cal.category_id, 
@@ -1876,14 +1873,13 @@ per_change_cal AS (
     pmr_cal.total_revenue, 
     pmr_cal.pmr,
     CASE
-      WHEN pmr_cal.pmr IS NULL -- Handle the first month where there is no previous month data
+      WHEN pmr_cal.pmr IS NULL
         THEN 0
       ELSE
-        (pmr_cal.total_revenue - pmr_cal.pmr)/pmr_cal.pmr * 100 -- Calculate percentage growth
+        (pmr_cal.total_revenue - pmr_cal.pmr)/pmr_cal.pmr * 100
       END AS percentage_change
   FROM pmr_cal
 ),
--- CTE to rank categories within each month based on their percentage growth
 ranking_months AS (
   Select
   pcl.category_id, 
@@ -1892,11 +1888,48 @@ ranking_months AS (
   pcl.total_revenue, 
   pcl.pmr,
   ROUND(pcl.percentage_change,2) AS percentage_change,
-  -- Rank categories by their growth percentage in descending order for each month
   RANK() OVER (PARTITION BY pcl.month ORDER BY ROUND(pcl.percentage_change,2) DESC) AS ranking
 FROM per_change_cal pcl
 )
--- Final query to select the top-growing category for each month
 SELECT * FROM ranking_months rm
-WHERE rm.percentage_change !=0 AND rm.ranking=1; -- Filter for the #1 ranked category with non-zero growth
+WHERE rm.percentage_change !=0 AND rm.ranking=1;
+
+
+/* Task: Film Inventory & Availability Analysis
+Business Question: "Help store managers understand which films are frequently out of stock and which categories need more inventory investment.
+
+Part-1: Count total films vs available films per store */
+WITH total_inventory AS (
+SELECT s.store_id, count(*) AS total_inventory
+FROM store s
+INNER JOIN inventory i ON
+s.store_id = i.store_id
+GROUP BY 1
+),
+rented_inventory AS (
+  SELECT s.store_id, COUNT(*) AS rent_iv
+    FROM store s
+    INNER JOIN inventory i ON s.store_id = i.store_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+    WHERE r.return_date IS NULL
+    GROUP BY 1
+),
+available_inventory AS (
+  SELECT ri.store_id, ti.total_inventory, ri.rent_iv,
+  ti.total_inventory - ri.rent_iv AS av_inv
+  FROM rented_inventory ri
+  INNER JOIN total_inventory ti ON ti.store_id = ri.store_id
+)
+SELECT *,
+ROUND(av.rent_iv::decimal/av.total_inventory::decimal*100,3) AS rented_percentage
+ FROM available_inventory av;
+
+ /* Part 2: Which specific films are hardest to keep in stock across our stores? 
+Film titles and IDs
+Store locations
+Total copies per film per store
+Currently rented copies
+Availability percentage
+Rank films by worst availability
+  */
 
