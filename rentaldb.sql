@@ -6,6 +6,7 @@
 -- List all tables and address columns
 SELECT * FROM information_schema.tables WHERE table_schema = 'public';
 
+-- Retrieve column names and data types for the 'address' table
 SELECT column_name, data_type FROM information_schema.columns 
 WHERE table_name = 'address' AND table_schema = 'public';
 
@@ -17,39 +18,47 @@ ORDER BY customer_id
 LIMIT 5;
 
 
+
 /* Count of Total distinct customers, total films, total rentals */
---Main Query with subquery to display Distinct customers, rentals and films
-SELECT (
-    SELECT COUNT(DISTINCT customer_id)
-    FROM customer
-  ) AS total_customers,
-  (
-    SELECT COUNT(DISTINCT film_id)
-    FROM film
-  ) AS total_films,
-  (
-    SELECT COUNT(DISTINCT rental_date)
-    FROM rental
-  ) AS total_rentals;
+-- Using subqueries in the SELECT list to get aggregate counts.
+-- Each subquery calculates a single value.
+SELECT 
+  -- Subquery to count the total number of unique customers.
+  (SELECT COUNT(DISTINCT customer_id) FROM customer) AS total_customers,
+  -- Subquery to count the total number of unique films.
+  (SELECT COUNT(DISTINCT film_id) FROM film) AS total_films,
+  -- Subquery to count the total number of unique rental transactions.
+  (SELECT COUNT(DISTINCT rental_id) FROM rental) AS total_rentals;
 
 --Using CTE & CROSS JOIN
-WITH total_customers AS (
+-- This query calculates the total number of distinct customers, films, and rentals
+-- using Common Table Expressions (CTEs) as an alternative to subqueries in the SELECT list.
+WITH 
+  -- CTE to count the total number of unique customers.
+  total_customers AS (
   SELECT COUNT(DISTINCT customer_id) AS total_customers
   FROM customer c
 ),
-total_films AS (
+  -- CTE to count the total number of unique films.
+  total_films AS (
   SELECT COUNT(DISTINCT f.film_id) AS total_films
   FROM film f
 ),
-total_rentals AS (
+  -- CTE to count the total number of unique rental transactions.
+  total_rentals AS (
   SELECT COUNT(DISTINCT r.rental_id) AS total_rentals
   FROM rental r
 )
+-- The main query uses CROSS JOIN to combine the single-row results from each CTE
+-- into a single output row with all the counts.
 SELECT *
 FROM total_customers
-  CROSS JOIN total_films,
-  total_rentals;
+  CROSS JOIN total_films
+  CROSS JOIN total_rentals;
 --Cross Join to join single value tables.
+
+
+
 
 
 /* Distinct categories across stores */
@@ -67,29 +76,37 @@ ORDER BY c.first_name;
 
 
 /* Customers who are from London city */
-SELECT CONCAT(c.first_name,' ',c.last_name) AS customer_name
+SELECT 
+  CONCAT(c.first_name,' ',c.last_name) AS customer_name,
+  ci.city
 FROM customer c
   JOIN address a ON c.address_id = a.address_id
   JOIN city ci ON a.city_id = ci.city_id
 WHERE ci.city = 'London';
 
+
 /* List of active customers who rented atleast once */
-SELECT DISTINCT r.customer_id AS customer_id,
+SELECT DISTINCT 
+  r.customer_id AS customer_id,
   c.first_name,
   c.last_name
 FROM rental r
   JOIN customer c ON r.customer_id = c.customer_id
 ORDER BY r.customer_id;
 
+
 /* List of customers who never rented a film */
-SELECT c.customer_id
+SELECT 
+  c.customer_id
 FROM customer c
   LEFT JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.customer_id IS NULL
 LIMIT 5;
 
+
 /* Customers renting from multiple stores */
-SELECT c.customer_id,
+SELECT 
+  c.customer_id,
   c.first_name,
   c.last_name
 FROM customer c
@@ -102,35 +119,46 @@ HAVING COUNT(DISTINCT s.store_id) = 2;
 
 
 -- Film language distribution
-SELECT f.title AS film_name,
+SELECT 
+  f.title AS film_name,
   l.name AS language
 FROM film f
   JOIN language l ON f.language_id = l.language_id;
 
+
+
 /* No. of films in each language */
-SELECT l.name AS film_language,
+SELECT 
+  l.name AS film_language,
   COUNT(*) AS no_of_films
 FROM language l
   INNER JOIN film f ON l.language_id = f.language_id
 GROUP BY 1
 ORDER BY no_of_films DESC;
 
+
+
 /* List of films which are not in inventory */
-SELECT f.film_id,
+SELECT 
+  f.film_id,
   f.title
 FROM film f
   LEFT JOIN inventory i ON f.film_id = i.film_id
 WHERE i.inventory_id IS NULL;
 
+
 /* Films by rating (PG-13/NC-17/R/PG/G)*/
-SELECT f.rating AS film_rating,
+SELECT 
+  f.rating AS film_rating,
   COUNT(*) AS film_count
 FROM film f
 GROUP BY f.rating
 ORDER BY film_count DESC;
 
+
 /* No.of films in each category. Ordered by category having most no of films */
-SELECT c.name AS category_name,
+SELECT 
+  c.name AS category_name,
   COUNT(*) AS film_count
 FROM category c
   JOIN film_category fc ON c.category_id = fc.category_id
@@ -139,7 +167,8 @@ GROUP BY c.name
 ORDER BY film_count DESC;
 
 /* Categories with less than 5 films in them */
-SELECT c.name AS category_name,
+SELECT 
+  c.name AS category_name,
   COUNT(*) AS no_of_films
 FROM category c
   INNER JOIN film_category fc ON c.category_id = fc.category_id
@@ -148,7 +177,8 @@ HAVING COUNT(*) < 5;
 
 
 /* Rental counts by customer */
-SELECT r.customer_id,
+SELECT 
+  r.customer_id,
   c.first_name,
   c.last_name,
   COUNT(*) AS rental_count
@@ -159,8 +189,10 @@ GROUP BY r.customer_id,
   c.last_name
 ORDER BY rental_count DESC;
 
+
 /* Customers who rented the films the most */
-SELECT c.customer_id,
+SELECT 
+  c.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
   COUNT(r.rental_id) AS total_rentals
 FROM customer c
@@ -170,12 +202,16 @@ GROUP BY c.customer_id,
 ORDER BY total_rentals DESC
 LIMIT 5;
 
+
 /* How many times each film is rented out/ Top renting films */
-SELECT i.film_id,
+SELECT 
+  i.film_id,
+  f.title,
   COUNT(*) AS rental_count
 FROM inventory i
   JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY i.film_id
+  INNER JOIN film f ON i.film_id = f.film_id
+GROUP BY i.film_id, f.title
 ORDER BY rental_count DESC;
 
 /* Calculating Average duration for each film */
@@ -216,22 +252,29 @@ GROUP BY c.customer_id,
 ORDER BY total_spend DESC
 LIMIT 5;
 
-/* Total amount spent by a customer across all transactions (Life time value) */
-SELECT p.customer_id,
+
+
+/* Total amount spent by a customer across all transactions (Life time value -LTV) */
+SELECT 
+  DISTINCT p.customer_id,
   SUM(p.amount) AS lifetime_value
 FROM payment p
 GROUP BY p.customer_id
 ORDER BY lifetime_value DESC;
 
+
+
 /* Average revenue per customer */
 -- Subquery Version
-SELECT CONCAT(ROUND(AVG(total_revenue), 2), '$') AS avg_revenue_per_customer --Main query to calculate avg revenue per customer
+SELECT 
+  CONCAT(ROUND(AVG(total_revenue), 2), '$') AS avg_revenue_per_customer --Main query to calculate avg revenue per customer
 FROM (
     SELECT customer_id,
       SUM(amount) AS total_revenue --Subquery to calculate total anount spent by each customer.
     FROM payment
     GROUP BY customer_id
   ) AS customer_revenue;
+
 -- Option 2: CTE
 --CTE to calculate amount total spent by customer
 WITH customer_revenue AS (
@@ -243,22 +286,32 @@ WITH customer_revenue AS (
 SELECT CONCAT(ROUND(AVG(total_revenue), 2), '$') AS avg_revenue_per_customer
 FROM customer_revenue;
 
+
+
+
 /* Customers spending more than average spend */
 --CTE to calculate amount spend by each customer across multiple rental transactions.
+-- CTE to calculate the total amount spent by each customer.
 WITH customer_spending AS (
-  SELECT customer_id,
+  SELECT 
+    customer_id,
     SUM(amount) AS total_spent
   FROM payment
   GROUP BY customer_id
 )
-SELECT customer_id,
+-- Select customers whose total spending is greater than the overall average.
+SELECT 
+  customer_id,
   total_spent
-FROM customer_spending --Comparing total amount spend by a customer with average for filtering
+FROM customer_spending
 WHERE total_spent > (
+    -- Subquery to calculate the average spending across all customers from the CTE.
     SELECT AVG(total_spent)
     FROM customer_spending
   )
-ORDER BY customer_id;
+ORDER BY total_spent;
+
+
 -- Alternative with CROSS JOIN
 --CTE to calculate total amount spent by each customer across all transactions.
 WITH customer_spending AS (
@@ -281,29 +334,28 @@ ORDER BY cs.customer_id;
 
 
 /* Total revenue generated till date */
-SELECT CONCAT(SUM(amount), '$') AS total_revenue
-FROM payment;
+SELECT 
+  CONCAT(SUM(p.amount), '$') AS total_revenue
+FROM payment p;
+
 /* Yearly revenue generated by all stores acorss all geographies */
-SELECT EXTRACT(
-    YEAR
-    FROM payment_date
-  ) AS year,
-  CONCAT(SUM(amount), '$') AS revenue
-FROM payment
+SELECT 
+  EXTRACT(YEAR FROM p.payment_date) AS year,
+  CONCAT(SUM(p.amount), '$') AS revenue
+FROM payment p
 GROUP BY year
 ORDER BY year;
 /* Total Revenue calculation by Year, Month and total revenue generated */
-SELECT EXTRACT(
-    YEAR
-    FROM payment_date
-  ) AS year,
-  TO_CHAR(payment_date, 'month') AS month,
-  SUM(amount) AS revenue
-FROM payment
-GROUP BY year,
-  month
-ORDER BY year,
-  month;
+SELECT 
+    TO_CHAR(DATE_TRUNC('Year', p.payment_date), 'YYYY') AS Year,
+    TO_CHAR(DATE_TRUNC('Month', p.payment_date), 'MM') AS Month,
+    SUM(p.amount)
+FROM payment p
+GROUP BY 1,2
+ORDER BY Year,
+    Month;
+
+
 
 /* Store information */
 SELECT s.store_id,
@@ -314,43 +366,36 @@ FROM store s
   JOIN city c ON a.city_id = c.city_id
   JOIN country co ON c.country_id = co.country_id;
 
+
+
 /* Rental trends by location (City, Country), Year and Month */
-SELECT co.country,
+SELECT 
+  co.country,
   c.city,
-  EXTRACT(
-    YEAR
-    FROM r.rental_date
-  ) AS year,
-  EXTRACT(
-    MONTH
-    FROM r.rental_date
-  ) AS month,
+  EXTRACT(YEAR FROM r.rental_date) AS year,
+  EXTRACT(MONTH FROM r.rental_date) AS month,
   COUNT(*) AS rental_count
 FROM city c
   JOIN country co ON c.country_id = co.country_id
   JOIN address a ON c.city_id = a.city_id
   JOIN customer cu ON a.address_id = cu.address_id
   JOIN rental r ON cu.customer_id = r.customer_id
-GROUP BY co.country,
-  c.city,
-  year,
-  month
+GROUP BY co.country, c.city, year, month
 ORDER BY rental_count DESC;
 
 
 /* Top revenue generating cities */
-SELECT c.city,
-  EXTRACT(
-    YEAR
-    FROM p.payment_date
-  ) AS year,
+SELECT
+  co.country,
+  c.city,
+  EXTRACT(YEAR FROM p.payment_date) AS year,
   SUM(p.amount) AS total_revenue
 FROM city c
   JOIN address a ON c.city_id = a.city_id
   JOIN customer ct ON a.address_id = ct.address_id
   JOIN payment p ON ct.customer_id = p.customer_id
-GROUP BY c.city,
-  year
+  INNER JOIN country co ON c.country_id = co.country_id
+GROUP BY c.city,year, co.country
 ORDER BY total_revenue DESC
 LIMIT 10;
 --Limiting by top 10 cities
@@ -369,12 +414,11 @@ GROUP BY c.category_id,
 ORDER BY rental_count DESC;
 
 
+
 /* Finding categories which are more profitable */
-/* Main query to calculate rentals in each movie category, 
- revenue generated by them and 
- average revenue per rental in that category
- Ordered by Avg revenue */
-SELECT c.name,
+/* Main query to calculate rentals in each movie category, revenue generated by them and average revenue per rental in that category, Ordered by Avg revenue */
+SELECT 
+  c.name,
   COUNT(r.rental_id) AS total_rentals,
   SUM(p.amount) AS total_revenue,
   ROUND(SUM(p.amount) / COUNT(r.rental_id), 2) AS avg_revenue_per_rental
@@ -385,7 +429,7 @@ FROM category c
   JOIN payment p ON r.rental_id = p.rental_id
 GROUP BY c.name
 ORDER BY avg_revenue_per_rental DESC;
---Key Insights Derived
+--Key Business Insights Derived
 --Sports generates highest revenue despite being in 3rd Position by avg_revenue
 -- Comedy Category Commands the highest premium.
 -- Family and Classics have below avg revenue.
@@ -393,7 +437,8 @@ ORDER BY avg_revenue_per_rental DESC;
 
 
 /* No.of.films rented out by each staff member/Metric to evaluate performance */
-SELECT r.staff_id,
+SELECT 
+  r.staff_id,
   s.email,
   COUNT(*) AS rental_count
 FROM rental r
@@ -404,7 +449,8 @@ ORDER BY rental_count DESC;
 
 
 /* Query to extract customers who return the rented films late using the date operations */
-SELECT r.customer_id,
+SELECT 
+  r.customer_id,
   CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
   c.email,
   COUNT(*) AS late_returns
@@ -412,54 +458,57 @@ FROM rental r
   JOIN inventory i ON r.inventory_id = i.inventory_id
   JOIN film f ON i.film_id = f.film_id
   JOIN customer c ON r.customer_id = c.customer_id
-WHERE r.return_date IS NOT NULL
+WHERE r.return_date IS NOT NULL --Handling null values
   AND (r.return_date::date - r.rental_date::date) > f.rental_duration --Converting renturn date, rental date into date and comparing that with rental duration to filter late returns
-GROUP BY 1,
-  2,
-  3
+GROUP BY 1,2,3
 ORDER BY late_returns DESC
 LIMIT 10;
 
 
 /* Unreturned films*/
-SELECT CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
-  --Concating firstname and lastname into customername
+SELECT 
+  CONCAT(c.first_name, ' ', c.last_name) AS customer_name, --Concating firstname and lastname into customername
   c.email,
   r.rental_date,
   r.return_date,
-  EXTRACT(
-    DAYS
-    FROM (CURRENT_DATE - r.rental_date)
-  ) AS days_rented --No.of days since film was rented out
+  EXTRACT(DAYS FROM (CURRENT_DATE - r.rental_date)) AS days_rented --No.of days since film was rented out
 FROM customer c
   JOIN rental r ON c.customer_id = r.customer_id
 WHERE r.return_date IS NULL;
 --Filtering customers whose returned date is Null - Unreturned films.
 
+
+
+
 /* Monthly rental patterns */
-SELECT TO_CHAR(rental_date, 'MM') AS month,
-  EXTRACT(
-    YEAR
-    FROM rental_date
-  ) AS year,
-  COUNT(*) AS rental_count
-FROM rental
+SELECT 
+  TO_CHAR(rental_date, 'MM') AS month,
+  EXTRACT(YEAR FROM rental_date) AS year,
+  COUNT(r.rental_id) AS rental_count
+FROM rental r
 GROUP BY 1,2
 ORDER BY rental_count DESC;
 
 
 /* Category popularity by year/month */
 --Main query to calculate no.of.rentals in each category, month and year wise.
-SELECT TO_CHAR(r.rental_date, 'YYYY') AS year,
+WITH pop_cat_rank AS (
+SELECT
+  TO_CHAR(r.rental_date, 'YYYY') AS year,
   TO_CHAR(r.rental_date, 'MM') AS month,
   c.name AS category,
-  COUNT(*) AS rental_count
+  COUNT(*) AS rental_count,
+  DENSE_RANK() OVER (PARTITION BY TO_CHAR(r.rental_date, 'YYYY'), TO_CHAR(r.rental_date, 'MM') ORDER BY COUNT(*) DESC) as ranked_metric
 FROM category c
   JOIN film_category fc ON c.category_id = fc.category_id
   JOIN inventory i ON fc.film_id = i.film_id
   JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY 1,2,3
-ORDER BY rental_count DESC;
+ORDER BY Year, month
+)
+SELECT * FROM pop_cat_rank pcr
+WHERE pcr.ranked_metric =1;
+
 
 
 /* Categorize Films by Rental Performance
@@ -1896,9 +1945,9 @@ WHERE rm.percentage_change !=0 AND rm.ranking=1;
 
 
 /* Task: Film Inventory & Availability Analysis
-Business Question: "Help store managers understand which films are frequently out of stock and which categories need more inventory investment.
+Business Question: "Help store managers understand which films are frequently out of stock and which categories need more inventory investment. */
 
-Part-1: Count total films vs available films per store */
+/*Part-1: Count total films vs available films per store */
 WITH total_inventory AS (
 SELECT s.store_id, count(*) AS total_inventory
 FROM store s
