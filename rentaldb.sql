@@ -1160,22 +1160,25 @@ ORDER BY 1;
 
 /* Weekend Rental Lovers
 Find the top 10 customers who rented the most movies on weekends (Saturday and Sunday).*/
---CTE to find top 10 customers who rented most on weekends, corresponding metric (count)
+
+--CTE to find top 10 customers who rented most on weekends with corresponding metric (count)
 WITH wknd_rental AS 
 (
   SELECT
-r.customer_id, c.first_name, COUNT(*) AS wk_rental_count
+  r.customer_id, 
+  c.first_name, 
+  COUNT(*) AS wk_rental_count
 FROM rental r
 INNER JOIN customer c ON r.customer_id = c.customer_id
-WHERE EXTRACT(DOW FROM rental_date) IN (0,6) --DOW: Extracting day of week from date 0-6
+WHERE EXTRACT(DOW FROM rental_date) IN (0,6) --DOW: Extracting day of week from date 0:Sunday-6:Saturday
 GROUP BY 1,2
 ORDER BY count(*) DESC
-LIMIT 10
 ),
 --CTE to find total_rentals by the above filtered customers (Top 10 weekend renters) to calculate weekend rental%
 rentals_by_customer_id AS
 (
-  SELECT r2.customer_id, count(*) AS total_rentals
+  SELECT r2.customer_id, 
+  count(*) AS total_rentals
   FROM rental r2
   INNER JOIN wknd_rental ON r2.customer_id = wknd_rental.customer_id --INNER JOIN CTE wknd_rentals
   GROUP BY r2.customer_id
@@ -1188,21 +1191,23 @@ rbci.total_rentals, --bigint
 ROUND((wknd_rental.wk_rental_count::numeric/rbci.total_rentals::numeric)*100,2) AS percentgae_of_rentals_on_weekends
 --Percetage calculation/dt conversion into numeric for percentage calculation
 FROM wknd_rental
-INNER JOIN rentals_by_customer_id rbci ON wknd_rental.customer_id = rbci.customer_id;
+INNER JOIN rentals_by_customer_id rbci ON wknd_rental.customer_id = rbci.customer_id
+ORDER BY percentgae_of_rentals_on_weekends DESC
+LIMIT 10;
 
 
-/* Find the top 5 films that: Have been rented at least 10 times in total. Have the highest average rental duration (in days).
-Show the film title, total number of rentals, and the average rental duration (rounded to 2 decimal places).
-Also display the category of each film.*/
+
+/* Find the top 5 films that: 
+i.  Have been rented at least 10 times in total. 
+ii. Have the highest average rental duration (in days).
+iii.Show the film title, total number of rentals, and the average rental duration (rounded to 2 decimal places).
+iv. Also display the category of each film.*/
 --Main Query
 SELECT f.film_id,
     f.title,
     c.name,
     COUNT(*) AS no_of_times_rented,
-    EXTRACT(
-        DAY
-        FROM AVG(r.return_date - r.rental_date)
-    ) AS avg_rental_duration
+    EXTRACT(DAY FROM AVG(r.return_date - r.rental_date)) AS avg_rental_duration
 FROM film f
     INNER JOIN film_category fc ON f.film_id = fc.film_id
     INNER JOIN category c ON fc.category_id = c.category_id
@@ -1215,13 +1220,15 @@ LIMIT 5;
 
 
 
+
 /* Find the top 5 customers who:
 Have spent the most total rental fees (based on payment.amount).
 Also have rented films from at least 5 different categories.
 Display for each customer: customer_id,first_name & last_name,total_spent, number_of_categories_rented
 Order the result by total_spent (highest first). */
 --Main Query to retrive customer details, total spend, no.of unique categories they rented from
-SELECT c.customer_id,
+SELECT 
+    c.customer_id,
     c.first_name, 
     c.last_name,
     count(DISTINCT ct.name) AS number_of_categories_rented,
@@ -1267,15 +1274,16 @@ ORDER BY sc.total_spent DESC
 LIMIT 5;
 
 
-/*Task:
-Find the top 5 actors who:
+
+/*Find the top 5 actors who:
 Have acted in films from at least 7 different categories.
 Have an average rental rate (across all their films) above the overall average rental rate of all films in the database.
 Output columns: actor_id, first_name, last_name, num_categories (distinct film categories), avg_rental_rate*/
 
 --CTE to filter actors who have acted in atleast 7 different categories
 WITH actor_filter AS (
-    SELECT a.actor_id,
+    SELECT 
+        a.actor_id,
         a.first_name,
         a.last_name,
         count(DISTINCT c.name) AS num_categories
@@ -1286,6 +1294,7 @@ WITH actor_filter AS (
     GROUP BY 1,2,3
     HAVING COUNT(DISTINCT c.name) >= 7
 ),
+--CTE to calculate average rental rate of the actor and comparing to overall average rental rate of all the films.
 rental_rate_cte AS (
     SELECT a.actor_id,
         AVG(f.rental_rate) AS actor_avg_rental_rate
@@ -1334,6 +1343,7 @@ SUM(p.amount) > (SELECT AVG(total)
                 t )
 ORDER BY total_spent DESC
 LIMIT 10;
+
 
 
 /*Find the customers who spent the most on rentals from only “Action” and “Comedy” categories.
@@ -1468,7 +1478,7 @@ tcs.last_name,
 tcs.name, 
 tcs.total_spent, 
 tcs.no_of_rentals,
-RANK() OVER (PARTITION BY tcs.name ORDER BY tcs.total_spent DESC) AS spend_rank
+DENSE_RANK() OVER (PARTITION BY tcs.name ORDER BY tcs.total_spent DESC) AS spend_rank
 FROM total_cat_spend tcs
 )
 --Main query to display top 5 customers in each category.
@@ -1481,6 +1491,8 @@ rc.spend_rank
 FROM ranked_customers rc
 WHERE spend_rank <= 5
 ORDER BY rc.name, rc.total_spent DESC;
+
+
 
 /*Find the top 3 most-rented films in each category.
 For each film, show: Category name,Film title, Number of times it was rented, Its rank within the category */
@@ -1519,7 +1531,7 @@ SELECT c.customer_id,
 c.first_name, 
 c.last_name, 
 cat.name, 
-COUNT(r.rental_id) rental_count
+COUNT(r.rental_id) total_category_rental_count
 FROM customer c
 INNER JOIN rental r ON c.customer_id = r.customer_id
 INNER JOIN inventory i ON r.inventory_id = i.inventory_id
@@ -1530,7 +1542,7 @@ GROUP BY 1,2,3,4
 --Rank cte
 ranking_rentals AS (
 SELECT rd.*, 
-rank() OVER (PARTITION BY rd.customer_id ORDER BY rd.rental_count DESC) AS rank
+rank() OVER (PARTITION BY rd.customer_id ORDER BY rd.total_category_rental_count DESC) AS rank
 FROM rental_data rd
 )
 SELECT * FROM ranking_rentals
@@ -1636,7 +1648,9 @@ WITH customer_data AS (
     ci.city, 
     co.country, 
     SUM(p.amount) AS total_spent, -- Total amount spent by the customer
-    SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum, -- Total amount spent in the country
+    -- Total amount spent in the country
+    --(No order by - SUM for country is calculated and is added as column with same value in all rows for that country)
+    SUM(SUM(p.amount)) OVER (PARTITION BY co.country) AS country_sum, 
     RANK() OVER (PARTITION BY co.country ORDER BY SUM(p.amount) DESC) AS rank, -- Customer's rank within the country by total spent
     ROUND((SUM(p.amount) / SUM(SUM(p.amount)) OVER (PARTITION BY co.country)) * 100, 2) AS share -- Percentage share of country revenue
   FROM payment p
@@ -1668,14 +1682,15 @@ SELECT * FROM
 SELECT f.film_id,
 f.title,
 c.name,
+f.release_year,
 COUNT(r.rental_id),
-RANK() OVER (PARTITION BY c.name ORDER BY COUNT(r.rental_id) DESC) as rank
+RANK() OVER (PARTITION BY c.name ORDER BY COUNT(r.rental_id) DESC, f.release_year ASC, f.title ASC) as rank
 FROM film f
 INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category c ON fc.category_id = c.category_id
 INNER JOIN inventory i ON f.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY 1,2,3
+GROUP BY 1,2,3,4
 ) AS ranked_films
 WHERE rank <=3;
 
@@ -1684,8 +1699,8 @@ WITH film_data AS (
   SELECT f.film_id,
 f.title,
 c.name,
-COUNT(r.rental_id) AS total_rentals,
-RANK() OVER (PARTITION BY c.name ORDER BY COUNT(r.rental_id) DESC) as rank
+COUNT(DISTINCT r.rental_id) AS total_rentals,
+RANK() OVER (PARTITION BY c.name ORDER BY COUNT(DISTINCT r.rental_id) DESC) as rank
 FROM film f
 INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category c ON fc.category_id = c.category_id
@@ -1700,6 +1715,7 @@ fd.total_rentals,
 fd.rank
 FROM film_data fd
 WHERE rank<=3;
+
 
 
 /*Find the top 5 months (across all years) with the highest rental activity.
