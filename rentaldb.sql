@@ -1693,7 +1693,6 @@ INNER JOIN rental r ON i.inventory_id = r.inventory_id
 GROUP BY 1,2,3,4
 ) AS ranked_films
 WHERE rank <=3;
-
 --CTE Version
 WITH film_data AS (
   SELECT f.film_id,
@@ -1715,6 +1714,7 @@ fd.total_rentals,
 fd.rank
 FROM film_data fd
 WHERE rank<=3;
+
 
 
 
@@ -1754,7 +1754,7 @@ WITH revenue_cal AS (
   SELECT DATE_TRUNC('Month', r.rental_date) AS year_month, --Truncate rental_date to month
   COUNT(r.rental_id) AS no_of_rentals,                     --Counting no.of.rentals in a given month
   SUM(p.amount) AS revenue,                                --Counting revenue in each given month
-  SUM(SUM(p.amount)) OVER() AS total_revenue               --Counting total global revenue generated till date (May not work in all db's)
+  SUM(SUM(p.amount)) OVER() AS total_revenue               --Counting total global revenue generated till date (May not work in all db's) using window function. (Non-cummulative)
   FROM rental r
   INNER JOIN payment p ON r.rental_id = p.rental_id
   GROUP BY 1
@@ -1789,10 +1789,8 @@ SELECT
   LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS lag, -- Previous month's revenue
   r.revenue - LAG(r.revenue) OVER (ORDER BY r.Month_Year) AS diff_in_rev, -- Revenue difference from previous month
   SUM(r.revenue) OVER (ORDER BY r.Month_Year) AS cumm_rev, -- Cumulative revenue up to this month
-  ROUND(
-    (r.revenue - LAG(r.revenue) OVER(ORDER BY r.Month_Year)) 
-    / NULLIF(LAG(r.revenue) OVER(ORDER BY r.Month_Year), 0) * 100, 2
-  ) AS percentage_change, -- Percentage growth compared to previous month
+  -- Percentage growth compared to previous month
+  ROUND((r.revenue - LAG(r.revenue) OVER(ORDER BY r.Month_Year)) / NULLIF(LAG(r.revenue) OVER(ORDER BY r.Month_Year), 0) * 100, 2) AS percentage_change,
   r.rentals -- Number of rentals in the month
 FROM revenue r;
 
@@ -1841,8 +1839,8 @@ SELECT
   cr.cummu_rev,
 CASE                                                   --CASE statement to handle null values.
   WHEN cr.pmr IS NULL THEN 0
-ELSE
-  ROUND((m.total_revenue - cr.pmr)/cr.pmr*100,2)     --Change in percentage calculation. total_revenue - previous_month_revenue/previous_month revenue
+ELSE 
+  ROUND((m.total_revenue - cr.pmr)/NULLIF(cr.pmr,0)*100,2)     --Change in percentage calculation. total_revenue - previous_month_revenue/previous_month revenue
 END AS percentage_change
 
 FROM mon_rev m
@@ -1855,6 +1853,7 @@ LIMIT 3;
 /* A “churn risk” customer is one who hasn’t rented in the last 60 days but had rented at least 5 films before that.*
 For each such customer, show: Customer ID & Name, Last rental date, Total amount spent
 Total rentals before their last rental */
+
 --CTE to calculate last rental date
 WITH last_rental_date AS (
 SELECT c.customer_id, CONCAT(c.first_name,'', c.last_name) AS full_name, MAX(r.rental_date) AS last_rental_date
@@ -1969,7 +1968,6 @@ SELECT
   cs.name, 
   cs.month, 
   cs.total_revenue,
-
   LAG(cs.total_revenue) OVER (PARTITION BY cs.category_id ORDER BY cs.month) AS pmr
   FROM cat_stats cs
 ),
@@ -2029,15 +2027,37 @@ available_inventory AS (
   INNER JOIN total_inventory ti ON ti.store_id = ri.store_id
 )
 SELECT *,
-ROUND(av.rent_iv::decimal/av.total_inventory::decimal*100,3) AS rented_percentage
- FROM available_inventory av;
+ROUND(av.rent_iv::decimal/av.total_inventory::decimal*100,3) AS rented_percentage,
+100-ROUND(av.rent_iv::decimal/av.total_inventory::decimal*100,3) AS available_inventory_percentage
+FROM available_inventory av;
 
  /* Part 2: Which specific films are hardest to keep in stock across our stores? 
-Film titles and IDs
-Store locations
-Total copies per film per store
+Film titles and IDs, Store locations, Total copies per film per store
+
 Currently rented copies
 Availability percentage
-Rank films by worst availability
-  */
+Rank films by worst availability*/
 
+WITH film_info AS (
+SELECT
+    f.film_id,
+    f.title,
+    i.store_id,
+    Count(f.title) AS total_copies_store
+FROM film f
+INNER JOIN inventory i ON f.film_id = i.film_id
+GROUP BY 1,2,3
+ORDER BY f.film_id
+),
+rented_inventory AS (
+  SELECT f.film_id,
+  s2.store_id,
+  COUNT(*) AS rented
+  FROM film f
+  INNER JOIN inventory i ON f.film_id = i.film_id
+  INNER JOIN store s2 ON i.store_id = s2.store_id
+  LEFT JOIN rental r ON i.inventory_id = r.inventory_id
+  WHERE r.return_date IS NULL
+  GROUP BY 1,2
+  ORDER BY f.film_id
+)
