@@ -2078,4 +2078,19 @@ ORDER BY ranking DESC; -- Order to show the films with the worst availability fi
 
 
 
+/* Create a Single SQL Query that Shows Today's Key Business Metrics - Todays rentals, report date, todays revenue, films_rented, late_returns, new_customers */
+--Scalar Query: Each SELECT statement returns exactly one single cell of data
+SELECT 
+  (SELECT CURRENT_DATE) AS todays_date,
 
+  (SELECT COUNT(r.rental_id) FROM rental r
+    WHERE DATE(r.rental_date) = CURRENT_DATE),
+
+  (SELECT sum(p.amount) FROM payment p
+  INNER JOIN rental r ON p.rental_id = r.rental_id
+  WHERE DATE(r.rental_date) = CURRENT_DATE) AS todays_revenue,
+  
+  (SELECT COUNT(DISTINCT f.film_id) FROM film f
+  INNER JOIN inventory i ON f.film_id = i.film_id
+  INNER JOIN rental r ON i.inventory_id = r.inventory_id
+  WHERE DATE(r.rental_date) = CURRENT_DATE) AS todays_rented_films;
