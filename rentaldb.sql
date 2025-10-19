@@ -2078,19 +2078,35 @@ ORDER BY ranking DESC; -- Order to show the films with the worst availability fi
 
 
 
-/* Create a Single SQL Query that Shows Today's Key Business Metrics - Todays rentals, report date, todays revenue, films_rented, late_returns, new_customers */
+/* Create a Single SQL Query that Shows Today's Key Business Metrics - 
+Todays rentals, report date, todays revenue, films_rented, late_returns (this month), new_customers (this month) */
 --Scalar Query: Each SELECT statement returns exactly one single cell of data
 SELECT 
   (SELECT CURRENT_DATE) AS todays_date,
 
   (SELECT COUNT(r.rental_id) FROM rental r
-    WHERE DATE(r.rental_date) = CURRENT_DATE),
+    WHERE DATE(r.rental_date) = CURRENT_DATE) AS todays_total_rentals,
 
-  (SELECT sum(p.amount) FROM payment p
+  (SELECT COALESCE(sum(p.amount), 0) FROM payment p
   INNER JOIN rental r ON p.rental_id = r.rental_id
   WHERE DATE(r.rental_date) = CURRENT_DATE) AS todays_revenue,
   
   (SELECT COUNT(DISTINCT f.film_id) FROM film f
   INNER JOIN inventory i ON f.film_id = i.film_id
   INNER JOIN rental r ON i.inventory_id = r.inventory_id
-  WHERE DATE(r.rental_date) = CURRENT_DATE) AS todays_rented_films;
+  WHERE DATE(r.rental_date) = CURRENT_DATE) AS todays_rented_films,
+  
+  (SELECT count(sq.cus) FROM 
+    (SELECT r.customer_id AS cus FROM rental r
+      GROUP BY 1
+    HAVING DATE_TRUNC('Month', min(r.rental_date::date)) = DATE_TRUNC('Month',CURRENT_DATE)) sq) AS new_customers_today,
+
+ (SELECT count(sq2.customer_id) AS late_returns_current_month FROM 
+  (
+ SELECT c.customer_id FROM customer c
+ INNER JOIN rental r ON c.customer_id = r.customer_id
+ INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+ INNER JOIN film f ON i.film_id = f.film_id
+ WHERE r.return_date::date - r.rental_date::date > f.rental_duration
+ AND TO_CHAR(DATE_TRUNC('Month', r.return_date),'yyyy-mm') = TO_CHAR(DATE_TRUNC('Month', CURRENT_DATE),'yyyy-mm')
+  ) sq2);
