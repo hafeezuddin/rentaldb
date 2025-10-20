@@ -1886,7 +1886,6 @@ WHERE ca.total_rentals > 5;
 
 
 
-
 /* Create a basic system that suggests films to customers based on their rental history and preferences.
 [FOR Customer_id =1] 
 Customer's Favorite Categories:find which film categories they rent most often
@@ -1917,7 +1916,7 @@ top_films_cat AS (
     f.film_id, 
     f.title, 
     i2.inventory_id, 
-    fc2.category_id, 
+    fc2.category_id, x
     COUNT(r2.rental_id) AS total_rentals
   FROM film f
     INNER JOIN inventory i2 ON f.film_id = i2.film_id
