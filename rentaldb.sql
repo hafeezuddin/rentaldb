@@ -10,13 +10,11 @@ SELECT * FROM information_schema.tables WHERE table_schema = 'public';
 SELECT column_name, data_type FROM information_schema.columns 
 WHERE table_name = 'address' AND table_schema = 'public';
 
-
 /* Customer data Sample */
 SELECT *
 FROM customer c
 ORDER BY customer_id
 LIMIT 5;
-
 
 
 /* Count of Total distinct customers, total films, total rentals */
