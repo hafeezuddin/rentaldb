@@ -2120,3 +2120,21 @@ SELECT
         AND DATE_TRUNC('month', r.return_date::date) = DATE_TRUNC('month', CURRENT_DATE)
     ) sq2
   ) AS late_returns_current_month;
+
+
+  /*Business Question: "Identify customers who consistently rent films every month"
+Requirements:
+Find customers who have rented at least once in every month of the current year (2005)
+Show customer details and their monthly rental consistency */
+
+SELECT 
+  c.customer_id, 
+  c.first_name, 
+  c.last_name, 
+  TO_CHAR(DATE_TRUNC('Month',r.rental_date), 'YYYY-MM') AS month_year,
+  TO_CHAR(DATE_TRUNC('Month',r.rental_date), 'YYYY') AS year,
+  COUNT(*)
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+GROUP BY 1,2,3,4,5
+ORDER BY c.customer_id;
