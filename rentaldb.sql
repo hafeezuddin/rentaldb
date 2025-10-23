@@ -56,11 +56,8 @@ FROM total_customers
 --Cross Join to join single value tables.
 
 
-
-
-
 /* Distinct categories across stores */
-SELECT DISTINCT c.name
+SELECT DISTINCT c.name AS available_categories
 FROM category c;
 
 
@@ -2148,4 +2145,3 @@ INNER JOIN rental r ON em.customer_id = r.customer_id
 INNER JOIN customer c ON r.customer_id = c.customer_id
 GROUP BY 1,2,3
 ORDER BY em.customer_id;
-
