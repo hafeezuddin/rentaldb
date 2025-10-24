@@ -2145,3 +2145,27 @@ INNER JOIN rental r ON em.customer_id = r.customer_id
 INNER JOIN customer c ON r.customer_id = c.customer_id
 GROUP BY 1,2,3
 ORDER BY em.customer_id;
+
+
+
+/*Business Requirement: Customer Segmentation Analysis
+Objective: Create a comprehensive customer segmentation analysis that classifies
+customers into tiers based on their rental behavior, spending patterns, and engagement levels.
+
+Requirements:
+    Segment customers into 4 tiers:
+        Platinum: Top 10% by total spending AND above-average rental frequency
+        Gold: Above-average spending OR above-average rental frequency (but not both)
+        Silver: Average performers (between 40th-60th percentile for both metrics)
+        Bronze: Below-average on both spending and rental frequency
+
+    For each segment, calculate:
+        Number of customers, Average total spending, Average rental frequency,
+        Most popular category in that segment, Percentage of late returns, Average days between rentals (engagement frequency)
+
+    Additional Analysis: Show the revenue contribution percentage of each segment, 
+    Identify which segments have the highest customer retention (customers who rented in the last 30 days)
+
+Expected Output Columns:
+    customer_segment, customer_count, avg_total_spent, avg_rental_count, top_category, late_return_rate, avg_days_between_rentals, 
+    segment_revenue_share, active_customer_percentage */
