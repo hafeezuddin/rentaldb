@@ -2169,3 +2169,16 @@ Requirements:
 Expected Output Columns:
     customer_segment, customer_count, avg_total_spent, avg_rental_count, top_category, late_return_rate, avg_days_between_rentals, 
     segment_revenue_share, active_customer_percentage */
+
+WITH customer_spend AS (
+SELECT 
+  c.customer_id,
+  c.first_name, 
+  c.last_name,
+  SUM(p.amount) AS total_spend
+FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+GROUP BY 1,2,3
+ORDER BY total_spend DESC
+)
