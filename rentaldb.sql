@@ -2162,13 +2162,10 @@ Requirements:
         Number of customers, Average total spending, Average rental frequency, 
         Average days between rentals (engagement frequency),Percentage of late returns,
         Identify which segments have the highest customer retention (customers who rented in the last 30 days),
-
-    Additional Analysis: Show the revenue contribution percentage of each segment, Most popular category in that segment.
-
+        Show the revenue contribution percentage of each segment, Most popular category in that segment.
 Expected Output Columns:
     customer_segment, customer_count, avg_total_spent, avg_rental_count, top_category, late_return_rate, avg_days_between_rentals, 
     segment_revenue_share, active_customer_percentage */
-
 
 -- CTE to compute total spend and spend percentile per customer
 WITH customer_spend_analysis AS (
@@ -2206,7 +2203,6 @@ rental_analysis AS (
   GROUP BY 1
   ORDER BY total_rentals DESC
 ),
-
 -- CTE with rounded average rental count across customers (single value)
 rental_across_all AS (
   SELECT ROUND(AVG(total_rentals), 2) AS avg_rental_across_all
@@ -2218,7 +2214,8 @@ category_analysis AS (
   SELECT
     csa.customer_id,
     cat.name,
-    COUNT(*) AS customer_category_count
+    COUNT(*) AS customer_category_count,
+    ROW_NUMBER() OVER (PARTITION BY csa.customer_id ORDER BY COUNT(*) DESC , cat.name ASC) AS category_rank
   FROM customer_spend_analysis csa
   INNER JOIN rental r ON csa.customer_id = r.customer_id
   INNER JOIN inventory i ON r.inventory_id = i.inventory_id
@@ -2228,6 +2225,12 @@ category_analysis AS (
   GROUP BY 1,2
   ORDER BY csa.customer_id
 ),
+top_category_per_customer AS (
+SELECT csa.customer_id, cat_ana1.name, cat_ana1.category_rank
+ FROM customer_spend_analysis csa
+INNER JOIN category_analysis cat_ana1 ON csa.customer_id = cat_ana1.customer_id
+WHERE cat_ana1.category_rank = 1
+), -- Top category per customer
 
 -- CTE to compute number and percentage of late returns per customer
 late_returns_percentage AS (
@@ -2296,6 +2299,7 @@ segmentation_cte AS (
     lrp.late_return_percentage,
     ac2.status AS customer_activity_status,
     ot.overall_total,
+    tcpc.name AS top_category,
     -- Segment assignment rules:
     -- Platinum: Top 10% by spending AND Top 50% by rental frequency
     -- Gold: Top 10% by spending OR Top 50% by rental frequency (but not both)
@@ -2315,9 +2319,21 @@ segmentation_cte AS (
   INNER JOIN avg_gap ag ON ra.customer_id = ag.customer_id
   INNER JOIN late_returns_percentage lrp ON ag.customer_id = lrp.customer_id
   INNER JOIN active_customers2 ac2 ON lrp.customer_id = ac2.customer_id
+  INNER JOIN top_category_per_customer tcpc ON ac2.customer_id = tcpc.customer_id
   CROSS JOIN rental_across_all ral  -- provides avg rental across all customers
   CROSS JOIN spend_across_all sal   -- provides avg spend across all customers
   CROSS JOIN overall_total ot        -- provides overall total spend across all customers
+),
+categ_top_cat AS (
+  SELECT sq1.categorization, sq1.top_category  
+    FROM (SELECT 
+            sc.categorization, 
+            sc.top_category,
+            COUNT(*),
+            ROW_NUMBER() OVER (PARTITION BY sc.categorization ORDER BY COUNT(*) DESC) AS rank_within_segment  
+  FROM segmentation_cte sc 
+  GROUP BY 1,2) AS sq1
+  WHERE sq1.rank_within_segment = 1
 )
 -- Aggregation by segment:
 -- avg_tier_spend: average spend in segment
@@ -2331,6 +2347,8 @@ SELECT
   COUNT(*) AS total_customers_in_tier,
   ROUND(COUNT(customer_activity_status) FILTER (WHERE customer_activity_status = 'active')::numeric/COUNT(*)::numeric*100,2) AS active_per,
   ROUND(AVG(late_return_percentage),2) AS avg_late_return_percentage,
-  ROUND(SUM((total_spend_by_each_customer)/scte.overall_total) *100,2) AS segment_revenue_share
+  ROUND(SUM((total_spend_by_each_customer)/scte.overall_total) *100,2) AS segment_revenue_share,
+  ctc.top_category
 FROM segmentation_cte scte
-GROUP BY scte.categorization;
+INNER JOIN categ_top_cat ctc ON scte.categorization = ctc.categorization
+GROUP BY scte.categorization,ctc.top_category;
