@@ -2244,15 +2244,6 @@ late_returns_percentage AS (
     OR (r.return_date IS NULL AND (CURRENT_DATE - r.rental_date::date) > f.rental_duration::numeric)
   GROUP BY 1,2
 ),
-
--- CTE to mark customers active in the last 30 days (recency)
-active_customers AS (
-  SELECT DISTINCT csa.customer_id AS cid
-  FROM customer_spend_analysis csa
-  INNER JOIN rental r ON csa.customer_id = r.customer_id
-  WHERE CURRENT_DATE - r.rental_date::date <= 30
-),
-
 active_customers2 AS (
   SELECT DISTINCT csa.customer_id, 
     CASE
