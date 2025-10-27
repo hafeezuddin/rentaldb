@@ -2159,20 +2159,23 @@ Requirements:
     Bronze: Bottom 10% by spending AND Bottom 50% by rental frequency
 
     For each segment, calculate:
-        Number of customers, Average total spending, Average rental frequency,
-        Most popular category in that segment, Percentage of late returns, Average days between rentals (engagement frequency)
+        Number of customers, Average total spending, Average rental frequency, 
+        Average days between rentals (engagement frequency),Percentage of late returns,
+        Identify which segments have the highest customer retention (customers who rented in the last 30 days),
 
-    Additional Analysis: Show the revenue contribution percentage of each segment, 
-    Identify which segments have the highest customer retention (customers who rented in the last 30 days)
+    Additional Analysis: Show the revenue contribution percentage of each segment, Most popular category in that segment.
 
 Expected Output Columns:
     customer_segment, customer_count, avg_total_spent, avg_rental_count, top_category, late_return_rate, avg_days_between_rentals, 
     segment_revenue_share, active_customer_percentage */
 
---CTE to find total spend
+
+-- CTE to compute total spend and spend percentile per customer
 WITH customer_spend_analysis AS (
-  SELECT c.customer_id, 
+  SELECT
+    c.customer_id,
     SUM(p.amount) AS total_spend_by_each_customer,
+    -- Percentile rank of customer by total spend (0..1)
     PERCENT_RANK() OVER (ORDER BY SUM(p.amount) DESC) AS spend_percentile
   FROM customer c
   INNER JOIN rental r ON c.customer_id = r.customer_id
@@ -2180,27 +2183,38 @@ WITH customer_spend_analysis AS (
   GROUP BY 1
   ORDER BY total_spend_by_each_customer DESC
 ),
---CTE to calculate average total spend
+
+-- CTE to compute rounded average spend across all customers (single value)
 spend_across_all AS (
-  SELECT ROUND(AVG(total_spend_by_each_customer)) AS avg_spend_across_all FROM customer_spend_analysis
+  SELECT ROUND(AVG(total_spend_by_each_customer)) AS avg_spend_across_all
+  FROM customer_spend_analysis
 ),
---CTE to calculate total rentals by each customer
+
+-- CTE to compute total number of rentals per customer and their percentile/rank
 rental_analysis AS (
-  SELECT csa.customer_id,
-  COUNT(r.rental_id) AS total_rentals,
-  PERCENT_RANK() OVER (ORDER BY COUNT(r.rental_id) DESC) AS rental_rank
-  FROM customer_spend_analysis csa 
+  SELECT
+    csa.customer_id,
+    COUNT(r.rental_id) AS total_rentals,
+    -- Percentile rank (0..1) of customers by rental count
+    PERCENT_RANK() OVER (ORDER BY COUNT(r.rental_id) DESC) AS rental_rank
+  FROM customer_spend_analysis csa
   INNER JOIN rental r ON csa.customer_id = r.customer_id
   GROUP BY 1
   ORDER BY total_rentals DESC
 ),
---CTE to calculate average rentals across all customers
-rental_across_all as (
-  SELECT ROUND(AVG(total_rentals),2) AS avg_rental_across_all FROM rental_analysis
+
+-- CTE with rounded average rental count across customers (single value)
+rental_across_all AS (
+  SELECT ROUND(AVG(total_rentals), 2) AS avg_rental_across_all
+  FROM rental_analysis
 ),
---CTE for category analysis
+
+-- CTE to compute category counts per customer (used to determine popular categories later)
 category_analysis AS (
-  SELECT csa.customer_id, cat.name, COUNT(*) AS customer_category_count
+  SELECT
+    csa.customer_id,
+    cat.name,
+    COUNT(*) AS customer_category_count
   FROM customer_spend_analysis csa
   INNER JOIN rental r ON csa.customer_id = r.customer_id
   INNER JOIN inventory i ON r.inventory_id = i.inventory_id
@@ -2211,82 +2225,113 @@ category_analysis AS (
   ORDER BY csa.customer_id
 ),
 
---CTE to calculate percentage of late returns per customer
+-- CTE to compute number and percentage of late returns per customer
 late_returns_percentage AS (
-  SELECT csa.customer_id, 
-  ra.total_rentals,
-  COUNT(*) AS no_of_late_returns,
-  ROUND((COUNT(*)::numeric/ra.total_rentals::numeric)*100,2) AS late_return_percentage
+  SELECT
+    csa.customer_id,
+    ra.total_rentals,
+    COUNT(*) AS no_of_late_returns,
+    -- Percentage of this customer's rentals that were late
+    ROUND((COUNT(*)::numeric / ra.total_rentals::numeric) * 100, 2) AS late_return_percentage
   FROM customer_spend_analysis csa
   INNER JOIN rental r ON csa.customer_id = r.customer_id
   INNER JOIN inventory i ON r.inventory_id = i.inventory_id
   INNER JOIN film f ON i.film_id = f.film_id
   INNER JOIN rental_analysis ra ON csa.customer_id = ra.customer_id
-  WHERE (r.return_date IS NOT NULL AND (r.return_date::date - r.rental_date::date) > f.rental_duration::numeric)
-  OR (r.return_date IS NULL AND (CURRENT_DATE - r.rental_date::date) > f.rental_duration::numeric)
+  WHERE
+    -- A rental is late if returned after rental_duration or still outstanding past duration
+    (r.return_date IS NOT NULL AND (r.return_date::date - r.rental_date::date) > f.rental_duration::numeric)
+    OR (r.return_date IS NULL AND (CURRENT_DATE - r.rental_date::date) > f.rental_duration::numeric)
   GROUP BY 1,2
 ),
---CTE for customer recency (Customers active in last 30days)
+
+-- CTE to mark customers active in the last 30 days (recency)
 active_customers AS (
   SELECT DISTINCT csa.customer_id AS cid
   FROM customer_spend_analysis csa
   INNER JOIN rental r ON csa.customer_id = r.customer_id
   WHERE CURRENT_DATE - r.rental_date::date <= 30
 ),
---CTE to calculate customer_engagement (days between rentals)
-customer_engagement AS (
- SELECT csa.customer_id, 
- r.rental_id, 
- r.rental_date,
- LAG(r.rental_date) OVER (PARTITION BY csa.customer_id ORDER BY csa.customer_id, r.rental_date) as lag_date,
- CASE
-  WHEN LAG(r.rental_date) OVER (PARTITION BY csa.customer_id ORDER BY csa.customer_id, r.rental_date) IS NULL THEN 0
-  ELSE
- EXTRACT(DAY FROM r.rental_date - LAG(r.rental_date) OVER (PARTITION BY csa.customer_id ORDER BY csa.customer_id, r.rental_date))
-  END AS days_between_rentals
- FROM customer_spend_analysis csa
- INNER JOIN rental r ON csa.customer_id = r.customer_id
- ORDER BY csa.customer_id, r.rental_date
+
+active_customers2 AS (
+  SELECT DISTINCT csa.customer_id, 
+    CASE
+      WHEN CURRENT_DATE - r.rental_date::date <=30 THEN 'active'
+      ELSE 'Inactive'
+      END AS status
+    FROM customer_spend_analysis csa
+    INNER JOIN rental r ON csa.customer_id = r.customer_id
 ),
---CTE to calculate avg_days_between_rentals_per_customer
+-- CTE to compute days between consecutive rentals per customer (engagement)
+customer_engagement AS (
+  SELECT
+    csa.customer_id,
+    r.rental_id,
+    r.rental_date,
+    LAG(r.rental_date) OVER (PARTITION BY csa.customer_id ORDER BY csa.customer_id, r.rental_date) AS lag_date,
+    CASE
+      WHEN LAG(r.rental_date) OVER (PARTITION BY csa.customer_id ORDER BY csa.customer_id, r.rental_date) IS NULL THEN 0
+      ELSE EXTRACT(DAY FROM r.rental_date - LAG(r.rental_date) OVER (PARTITION BY csa.customer_id ORDER BY csa.customer_id, r.rental_date))
+    END AS days_between_rentals
+  FROM customer_spend_analysis csa
+  INNER JOIN rental r ON csa.customer_id = r.customer_id
+  ORDER BY csa.customer_id, r.rental_date
+),
+-- CTE to compute average days between rentals per customer
 avg_gap AS (
-  SELECT csa.customer_id, 
-  ROUND(AVG(days_between_rentals),2) AS average_gap
+  SELECT
+    csa.customer_id,
+    ROUND(AVG(days_between_rentals), 2) AS average_gap
   FROM customer_spend_analysis csa
   INNER JOIN customer_engagement ce ON csa.customer_id = ce.customer_id
   GROUP BY 1
 ),
---CTE for segmentation
+-- Final segmentation CTE: joins spend/rental metrics and assigns segment using CASE
 segmentation_cte AS (
-  SELECT csa.customer_id, 
-  csa.spend_percentile, 
-  ra.rental_rank,
-  csa.total_spend_by_each_customer,
-  sal.avg_spend_across_all,
-  ra.total_rentals,
-  ral.avg_rental_across_all,
-  CASE
-    WHEN csa.spend_percentile <= 0.10 AND ra.rental_rank <=0.5
-      THEN 'Platinum'
-    WHEN (csa.spend_percentile <= 0.10 OR ra.rental_rank <=0.50)
-      AND NOT (csa.spend_percentile <= 0.10 AND ra.rental_rank <=0.5)
-    THEN 'gold'
-    WHEN csa.spend_percentile BETWEEN 0.40 AND 0.60
-        AND ra.rental_rank BETWEEN 0.40 AND 0.60
-    THEN 'Silver'
-    WHEN csa.spend_percentile >= 0.90 AND ra.rental_rank >= 0.50
-    THEN 'Bronze'
-    ELSE
-      'Regular'
+  SELECT
+    csa.customer_id,
+    csa.spend_percentile,
+    ra.rental_rank,
+    csa.total_spend_by_each_customer,
+    sal.avg_spend_across_all,
+    ra.total_rentals,
+    ral.avg_rental_across_all,
+    ag.average_gap,
+    lrp.late_return_percentage,
+    ac2.status AS customer_activity_status,
+    -- Segment assignment rules:
+    -- Platinum: Top 10% by spending AND Top 50% by rental frequency
+    -- Gold: Top 10% by spending OR Top 50% by rental frequency (but not both)
+    -- Silver: Between 40th-60th percentile for both metrics
+    -- Bronze: Bottom 10% by spending AND Bottom 50% by rental frequency
+    CASE
+      WHEN csa.spend_percentile <= 0.10 AND ra.rental_rank <= 0.50 THEN 'Platinum'
+      WHEN (csa.spend_percentile <= 0.10 OR ra.rental_rank <= 0.50)
+           AND NOT (csa.spend_percentile <= 0.10 AND ra.rental_rank <= 0.50) THEN 'Gold'
+      WHEN csa.spend_percentile BETWEEN 0.40 AND 0.60
+           AND ra.rental_rank BETWEEN 0.40 AND 0.60 THEN 'Silver'
+      WHEN csa.spend_percentile >= 0.90 AND ra.rental_rank >= 0.50 THEN 'Bronze'
+      ELSE 'Regular'
     END AS categorization
   FROM customer_spend_analysis csa
   INNER JOIN rental_analysis ra ON csa.customer_id = ra.customer_id
-  CROSS JOIN rental_across_all ral
-  CROSS JOIN spend_across_all sal
+  INNER JOIN avg_gap ag ON ra.customer_id = ag.customer_id
+  INNER JOIN late_returns_percentage lrp ON ag.customer_id = lrp.customer_id
+  INNER JOIN active_customers2 ac2 ON lrp.customer_id = ac2.customer_id
+  CROSS JOIN rental_across_all ral  -- provides avg rental across all customers
+  CROSS JOIN spend_across_all sal   -- provides avg spend across all customers
 )
-SELECT scte.categorization, 
-  ROUND(AVG(total_spend_by_each_customer),2) AS avg_tier_spend,
-  ROUND(AVG(total_rentals),2) AS avg_tier_rentals,
-  COUNT(*) AS total_customers_in_tier
-    FROM segmentation_cte scte
+-- Aggregation by segment:
+-- avg_tier_spend: average spend in segment
+-- avg_tier_rentals: average rentals in segment
+-- total_customers_in_tier: count of customers in segment
+SELECT
+  scte.categorization,
+  ROUND(AVG(total_spend_by_each_customer), 2) AS avg_tier_spend,
+  ROUND(AVG(total_rentals), 2) AS avg_tier_rentals,
+  ROUND(AVG(average_gap),2) AS average_gap,
+  COUNT(*) AS total_customers_in_tier,
+  COUNT(customer_activity_status) FILTER (WHERE customer_activity_status = 'Inactive') AS Inactive_customers_in_tier,
+  ROUND(AVG(late_return_percentage),2) AS avg_late_return_percentage
+FROM segmentation_cte scte
 GROUP BY 1;
