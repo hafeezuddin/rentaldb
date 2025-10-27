@@ -2322,7 +2322,7 @@ SELECT
   ROUND(AVG(total_rentals), 2) AS avg_tier_rentals,
   ROUND(AVG(average_gap),2) AS average_gap,
   COUNT(*) AS total_customers_in_tier,
-  COUNT(customer_activity_status) FILTER (WHERE customer_activity_status = 'Inactive') AS Inactive_customers_in_tier,
+  ROUND(COUNT(customer_activity_status) FILTER (WHERE customer_activity_status = 'Inactive')::numeric/COUNT(*)::numeric*100,2) AS inactive_per,
   ROUND(AVG(late_return_percentage),2) AS avg_late_return_percentage
 FROM segmentation_cte scte
 GROUP BY 1;
