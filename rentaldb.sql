@@ -2245,13 +2245,14 @@ late_returns_percentage AS (
   GROUP BY 1,2
 ),
 active_customers2 AS (
-  SELECT DISTINCT csa.customer_id, 
+  SELECT csa.customer_id, 
     CASE
-      WHEN CURRENT_DATE - r.rental_date::date <=30 THEN 'active'
+      WHEN CURRENT_DATE - MAX(r.rental_date::date) <= 30 THEN 'active'
       ELSE 'Inactive'
       END AS status
     FROM customer_spend_analysis csa
     INNER JOIN rental r ON csa.customer_id = r.customer_id
+    GROUP BY 1
 ),
 -- CTE to compute days between consecutive rentals per customer (engagement)
 customer_engagement AS (
