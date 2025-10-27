@@ -2283,15 +2283,6 @@ segmentation_cte AS (
   INNER JOIN rental_analysis ra ON csa.customer_id = ra.customer_id
   CROSS JOIN rental_across_all ral
   CROSS JOIN spend_across_all sal
-),
-segment_category_counts AS (
-  SELECT 
-    sc.categorization,
-    ca.name AS category_name,
-    SUM(ca.customer_category_count) AS total_category_rentals
-  FROM segmentation_cte sc
-  INNER JOIN category_analysis ca ON sc.customer_id = ca.customer_id
-  GROUP BY sc.categorization, ca.name
 )
 SELECT scte.categorization, 
   ROUND(AVG(total_spend_by_each_customer),2) AS avg_tier_spend,
