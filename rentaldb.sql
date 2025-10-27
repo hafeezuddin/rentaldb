@@ -2148,9 +2148,6 @@ ORDER BY em.customer_id;
 
 
 
-
-
-
 /*Business Requirement: Customer Segmentation Analysis
 Objective: Create a comprehensive customer segmentation analysis that classifies
 customers into tiers based on their rental behavior, spending patterns, and engagement levels.
@@ -2185,6 +2182,10 @@ WITH customer_spend_analysis AS (
   INNER JOIN payment p ON r.rental_id = p.rental_id
   GROUP BY 1
   ORDER BY total_spend_by_each_customer DESC
+),
+overall_total AS (
+  SELECT sum(total_spend_by_each_customer) AS overall_total
+  FROM customer_spend_analysis
 ),
 
 -- CTE to compute rounded average spend across all customers (single value)
@@ -2294,6 +2295,7 @@ segmentation_cte AS (
     ag.average_gap,
     lrp.late_return_percentage,
     ac2.status AS customer_activity_status,
+    ot.overall_total,
     -- Segment assignment rules:
     -- Platinum: Top 10% by spending AND Top 50% by rental frequency
     -- Gold: Top 10% by spending OR Top 50% by rental frequency (but not both)
@@ -2315,6 +2317,7 @@ segmentation_cte AS (
   INNER JOIN active_customers2 ac2 ON lrp.customer_id = ac2.customer_id
   CROSS JOIN rental_across_all ral  -- provides avg rental across all customers
   CROSS JOIN spend_across_all sal   -- provides avg spend across all customers
+  CROSS JOIN overall_total ot        -- provides overall total spend across all customers
 )
 -- Aggregation by segment:
 -- avg_tier_spend: average spend in segment
@@ -2326,7 +2329,8 @@ SELECT
   ROUND(AVG(total_rentals), 2) AS avg_tier_rentals,
   ROUND(AVG(average_gap),2) AS average_gap,
   COUNT(*) AS total_customers_in_tier,
-  ROUND(COUNT(customer_activity_status) FILTER (WHERE customer_activity_status = 'Inactive')::numeric/COUNT(*)::numeric*100,2) AS inactive_per,
-  ROUND(AVG(late_return_percentage),2) AS avg_late_return_percentage
+  ROUND(COUNT(customer_activity_status) FILTER (WHERE customer_activity_status = 'active')::numeric/COUNT(*)::numeric*100,2) AS active_per,
+  ROUND(AVG(late_return_percentage),2) AS avg_late_return_percentage,
+  ROUND(SUM((total_spend_by_each_customer)/scte.overall_total) *100,2) AS segment_revenue_share
 FROM segmentation_cte scte
-GROUP BY 1;
+GROUP BY scte.categorization;
