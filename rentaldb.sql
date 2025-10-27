@@ -2148,6 +2148,9 @@ ORDER BY em.customer_id;
 
 
 
+
+
+
 /*Business Requirement: Customer Segmentation Analysis
 Objective: Create a comprehensive customer segmentation analysis that classifies
 customers into tiers based on their rental behavior, spending patterns, and engagement levels.
