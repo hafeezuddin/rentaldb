@@ -1,4 +1,4 @@
-/* 001 - Average revenue per customer (subquery + CTE versions) */
+/* Average revenue per customer (subquery + CTE versions) */
 -- Subquery Version
 SELECT 
   CONCAT(ROUND(AVG(total_revenue), 2), '$') AS avg_revenue_per_customer

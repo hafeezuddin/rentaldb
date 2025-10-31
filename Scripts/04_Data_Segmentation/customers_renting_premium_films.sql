@@ -1,4 +1,4 @@
-/* 003 - Customers renting premium films (most expensive) */
+/* Customers renting premium films (most expensive) */
 WITH premium_films AS (
   SELECT film_id
   FROM film

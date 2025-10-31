@@ -1,4 +1,4 @@
-/* 002 - Customers spending more than average */
+/* Customers spending more than average */
 WITH customer_spending AS (
   SELECT 
     customer_id,

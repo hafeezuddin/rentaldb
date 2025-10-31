@@ -1,4 +1,4 @@
-/* 004 - Films with rental rate higher than average (premium films) */
+/* Films with rental rate higher than average (premium films) */
 WITH avg_price AS (
   SELECT AVG(f.rental_rate) AS avg_rate FROM film f
 )
