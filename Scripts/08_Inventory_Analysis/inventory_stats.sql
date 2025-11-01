@@ -1,5 +1,6 @@
-/* Task: Film Inventory & Availability Analysis
+/* Task: Film Inventory & Availability Analysis */
 /*Count total films vs available films per store */
+
 WITH total_inventory AS (
 SELECT s.store_id, count(*) AS total_inventory
 FROM store s
