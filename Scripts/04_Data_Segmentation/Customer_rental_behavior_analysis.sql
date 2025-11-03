@@ -104,4 +104,4 @@ INNER JOIN avg_engagement_frequency aef ON cm.customer_id = aef.customer_id
 INNER JOIN most_rented_category mrc ON aef.customer_id = mrc.customer_id
 INNER JOIN active_status ac ON mrc.customer_id = ac.customer_id
 CROSS JOIN averages_counts acs
-GROUP BY 1,2,3,4,5,6,7,8,9,10;S
+GROUP BY 1,2,3,4,5,6,7,8,9,10;

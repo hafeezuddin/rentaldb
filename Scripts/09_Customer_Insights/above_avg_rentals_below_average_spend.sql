@@ -1,6 +1,6 @@
 
 /*- Find customers who have rented films more than the average number of times but whose 
-total spend is below the average total spend across all customers. */s
+total spend is below the average total spend across all customers. */
 --CTE to find customers who rented more than average number of times
 WITH above_avg_rentals AS (
 SELECT c.customer_id,
