@@ -30,18 +30,18 @@ SELECT f.film_id AS fid,
     f.replacement_cost,
     COUNT(DISTINCT r.rental_id) AS no_of_rentals,
     SUM(p.amount) AS total_revenue_generated,
-    PERCENT_RANK() OVER (ORDER BY SUM(p.amount) DESC) AS percent_rev_rank,
-    PERCENT_RANK() OVER (ORDER BY COUNT(r.rental_id) DESC) AS percent_rent_rank,
-    SUM(p.amount) /COUNT(r.rental_id) AS avg_rev_per_rental,
+    PERCENT_RANK() OVER (ORDER BY SUM(p.amount)) AS percent_rev_rank,
+    PERCENT_RANK() OVER (ORDER BY COUNT(r.rental_id)) AS percent_rent_rank,
+    SUM(p.amount) /COUNT(DISTINCT i.inventory_id) AS avg_rev_per_copy,
     EXTRACT(DAY FROM AVG(r.return_date - r.rental_date)) AS avg_rental_duration
 FROM film f
 INNER JOIN inventory i ON f.film_id = i.film_id
 INNER JOIN rental r ON i.inventory_id = r.inventory_id
-INNER JOIN film_category fc ON i.film_id = fc.film_id
+INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category cat ON fc.category_id = cat.category_id
 INNER JOIN payment p ON r.rental_id = p.rental_id AND r.return_date IS NOT NULL
 WHERE r.return_date IS NOT NULL
-GROUP BY 1,2,3
+GROUP BY 1,2,3,4
 ),
 --CTE to calculate available inventory across all stores after accounting for unreturned rentals
 available_inventory AS (
@@ -53,23 +53,30 @@ available_inventory AS (
     WHERE r.rental_id IS NULL
     GROUP BY 1
 ),
+available_inventory2 AS (
+    SELECT f.film_id, COUNT(i.inventory_id) AS total_invent
+    FROM film f
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    GROUP BY 1
+), 
 utilization_rate_calculation AS (
 SELECT x2.film_id, 
-    ROUND(SUM(x2.rental_duration::numeric)/365*100,2) AS utlisation_rate_for_2005 FROM 
+    ROUND(SUM(x2.rental_duration::numeric)/(x2.total_invent*365)*100,2) AS utlisation_rate_for_2005 FROM 
     (
-        SELECT f.film_id, r.rental_date, r.return_date,
+        SELECT f.film_id,av_ai.total_invent, r.rental_date, r.return_date,
         r.return_date::date - r.rental_date::date AS rental_duration
         FROM film f
         INNER JOIN inventory i ON f.film_id = i.film_id
         INNER JOIN rental r ON i.inventory_id = r.inventory_id
+        INNER JOIN available_inventory2 av_ai ON i.film_id = av_ai.film_id
         WHERE r.return_date IS NOT NULL
         ORDER BY f.film_id, i.inventory_id
     ) x2
-GROUP BY 1
+GROUP BY 1, x2.total_invent
 ORDER BY 1
 ),
 overall_avg_cte AS (
-    SELECT AVG(fm.avg_rev_per_rental) AS overall_average
+    SELECT AVG(fm.avg_rev_per_copy) AS overall_average
     FROM film_metrics fm
 ),
 --Aggregator CTE
@@ -78,7 +85,7 @@ agg AS (
     fm.title,
     fm.name,
     fm.replacement_cost,
-    fm.avg_rev_per_rental,
+    fm.avg_rev_per_copy,
     oac.overall_average,
     fm.total_revenue_generated,
     fm.percent_rev_rank,
@@ -92,10 +99,10 @@ agg AS (
             THEN 'Blockbuster'
         WHEN fm.percent_rev_rank <= 0.25 AND fm.replacement_cost > 20
             THEN 'Underperforming'
-        WHEN fm.avg_rev_per_rental > oac.overall_average AND urc.utlisation_rate_for_2005 > 60
+        WHEN fm.avg_rev_per_copy > oac.overall_average AND urc.utlisation_rate_for_2005 > 60
             THEN 'Efficient'
         ELSE
-            'All other films'
+            'Standard'
         END AS categorization
 FROM film_metrics fm
 INNER JOIN available_inventory ai ON fm.fid = ai.film_id
