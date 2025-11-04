@@ -1,4 +1,4 @@
-/* You're analyzing the DVD rental business to optimize inventory purchasing and identify underperforming films. 
+/* Business Case: You're analyzing the DVD rental business to optimize inventory purchasing and identify underperforming films. 
 Management wants to make data-driven decisions about which films to keep, restock, or remove from inventory.
 
 Specific Requirements:
@@ -22,7 +22,7 @@ Additional Requirements:
     Calculate ROI: (total_revenue / replacement_cost) * 100
 */
 
---CTE to retrieve core film metrics id, title, total revenue, total rentals, avg rental duration
+-- CTE for core film metrics: Calculates revenue, rentals, and duration statistics
 WITH film_metrics AS (
 SELECT f.film_id AS fid, 
     f.title AS title,
@@ -30,8 +30,10 @@ SELECT f.film_id AS fid,
     f.replacement_cost,
     COUNT(DISTINCT r.rental_id) AS no_of_rentals,
     SUM(p.amount) AS total_revenue_generated,
+    -- Calculate percentile ranks for revenue and rental counts
     PERCENT_RANK() OVER (ORDER BY SUM(p.amount)) AS percent_rev_rank,
     PERCENT_RANK() OVER (ORDER BY COUNT(r.rental_id)) AS percent_rent_rank,
+    -- Calculate average revenue per copy of film
     SUM(p.amount) /COUNT(DISTINCT i.inventory_id) AS avg_rev_per_copy,
     EXTRACT(DAY FROM AVG(r.return_date - r.rental_date)) AS avg_rental_duration
 FROM film f
@@ -43,7 +45,7 @@ INNER JOIN payment p ON r.rental_id = p.rental_id AND r.return_date IS NOT NULL
 WHERE r.return_date IS NOT NULL
 GROUP BY 1,2,3,4
 ),
---CTE to calculate available inventory across all stores after accounting for unreturned rentals
+-- CTE to find currently available inventory (excluding unreturned rentals)
 available_inventory AS (
     SELECT f.film_id,
     COUNT(*) AS available_inventory
@@ -53,14 +55,17 @@ available_inventory AS (
     WHERE r.rental_id IS NULL
     GROUP BY 1
 ),
+-- CTE to calculate total inventory regardless of rental status
 available_inventory2 AS (
     SELECT f.film_id, COUNT(i.inventory_id) AS total_invent
     FROM film f
     INNER JOIN inventory i ON f.film_id = i.film_id
     GROUP BY 1
 ), 
+-- CTE to calculate utilization rate (percentage of time film was rented in 2005)
 utilization_rate_calculation AS (
 SELECT x2.film_id, 
+    -- Calculate utilization as (total rental days / (total inventory * 365 days)) * 100
     ROUND(SUM(x2.rental_duration::numeric)/(x2.total_invent*365)*100,2) AS utlisation_rate_for_2005 FROM 
     (
         SELECT f.film_id,av_ai.total_invent, r.rental_date, r.return_date,
@@ -75,11 +80,12 @@ SELECT x2.film_id,
 GROUP BY 1, x2.total_invent
 ORDER BY 1
 ),
+-- CTE to calculate overall average revenue per copy for comparison
 overall_avg_cte AS (
     SELECT AVG(fm.avg_rev_per_copy) AS overall_average
     FROM film_metrics fm
 ),
---Aggregator CTE
+-- Final aggregation CTE combining all metrics and categorizing films
 agg AS (
     SELECT fm.fid, 
     fm.title,
@@ -93,7 +99,9 @@ agg AS (
     fm.percent_rent_rank,
     ai.available_inventory,
     urc.utlisation_rate_for_2005,
+    -- Calculate ROI as (revenue/cost)*100
     ROUND((fm.total_revenue_generated/fm.replacement_cost)*100,2) AS ROI,
+    -- Categorize films based on performance metrics
     CASE
         WHEN fm.percent_rev_rank >= 0.85 AND fm.percent_rent_rank >= 0.85
             THEN 'Blockbuster'
