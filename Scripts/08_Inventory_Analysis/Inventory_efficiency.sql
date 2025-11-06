@@ -32,7 +32,7 @@ WITH film_metrics AS (
     INNER JOIN inventory i ON f.film_id = i.film_id
     INNER JOIN rental r ON i.inventory_id = r.inventory_id
     INNER JOIN payment p ON r.rental_id = p.rental_id
-    WHERE r.return_date IS NOT NULL
+    WHERE r.return_date IS NOT NULL --Account only films that are returned.
     GROUP BY 1
 ),
 --CTE to calculate average_rental_duration per film and pull  actual allowed duration
@@ -57,12 +57,14 @@ rental_frequency AS (
     GROUP BY 1
     ORDER BY 1 ASC
 ),
+--CTE to calculate total copies of each film
 total_copies AS (
     SELECT f.film_id, COUNT(*) AS total_invent
     FROM film f
     INNER JOIN inventory i ON f.film_id = i.film_id
     GROUP BY 1
 ),
+--CTE to calculate rentals in last 90 days assumming currect_date as 2006-01-01 (As latest data not available)
 last_ninety_days AS (
     SELECT f.film_id, COUNT(DISTINCT i.inventory_id) AS active_invent
     FROM film f
@@ -71,6 +73,7 @@ last_ninety_days AS (
     WHERE r.rental_date > '2006-01-01'::date - 90
     GROUP BY 1
 ),
+--CTE to calculate utilization rate (% of inventory copies rented at least once in last 90 days): active_inventory/total inventory.
 Utilization_calculation AS (
     SELECT tc.film_id, 
     lnd.active_invent::numeric/tc.total_invent AS util,
@@ -79,6 +82,8 @@ Utilization_calculation AS (
     INNER JOIN last_ninety_days lnd ON tc.film_id = lnd.film_id
     ORDER BY 1 ASC
 ),
+--CTE to calculate store wise film rentals. Using inner join to account only for films that are rented and returned.
+--Can use left join to account for films that are not rented.
 store_wise_analysis AS (
     SELECT f.film_id, 
         COUNT(CASE WHEN i.store_id =1 THEN 1 END) AS store1_rental,
@@ -90,27 +95,28 @@ store_wise_analysis AS (
     GROUP BY 1
     ORDER BY f.film_id ASC
 )
+--Main aggregator query.
 SELECT fm.film_id,fm.title, cat.name,
     fm.total_rentals,
     fm.total_revenue,
-    fm.rev_rank,
+    ROUND(fm.rev_rank::numeric,2) AS rev_rank,
     fard.allowed_rental_duration,
     fard.actual_average_duration,
-    rf.rental_frequency_2005,
-    rf.rf_rank,
+    ROUND(rf.rental_frequency_2005::numeric,2) AS rental_frequency_2005,
+    ROUND(rf.rf_rank::numeric,2) AS rf_rank,
     ROUND(uc.util * 100,2) AS inventory_utilisation_rate,
-    uc.util_rank,
+    ROUND(uc.util_rank::numeric,2) AS util_rank,
     swa.store1_rental,
     swa.store2_rental,
     (swa.store1_rental - swa.store2_rental) AS disparity,
     CASE
-        WHEN fm.rev_rank > 0.8 AND rf.rf_rank > 0.8
+        WHEN rev_rank > 0.8 AND rf_rank > 0.8
             THEN 'Blockbusters'
-        WHEN fm.rev_rank < 0.3 AND rf.rf_rank < 0.3
+        WHEN rev_rank < 0.3 AND rf_rank < 0.3
             THEN 'Underperformers'
         WHEN uc.util > 80 AND fard.actual_average_duration > fard.allowed_rental_duration
             THEN 'Efficient Classics'
-        WHEN uc.util < 30 AND fm.total_rentals < (SELECT AVG(total_rentals) FROM film_metrics)
+        WHEN util < 30 AND fm.total_rentals < (SELECT AVG(total_rentals) FROM film_metrics) --SQ to calculate average rentals per film and compare it to total rentals.
             THEN 'Slow-Movers'
         ELSE 'Balanced Performers'
         END AS performance_category
