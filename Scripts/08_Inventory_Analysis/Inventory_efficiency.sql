@@ -3,7 +3,6 @@
 Specific Requirements:
 For each film, calculate: Total rentals and total revenue generated
 Average rental duration vs. actual rental period
-
 Rental frequency (rentals per day available)
 Inventory utilization rate (% of inventory copies rented at least once in last 90 days)
 
@@ -25,7 +24,10 @@ performance_category, store_1_rentals, store_2_rentals, performance_disparity */
 
 --CTE to calculate core business metrics
 WITH film_metrics AS (
-    SELECT f.film_id, COUNT(DISTINCT r.rental_id) AS total_rentals, SUM(p.amount) AS total_revenue
+    SELECT f.film_id, f.title,
+        COUNT(DISTINCT r.rental_id) AS total_rentals, 
+        SUM(p.amount) AS total_revenue,
+        PERCENT_RANK() OVER (ORDER BY SUM(p.amount)) AS rev_rank
     FROM film f
     INNER JOIN inventory i ON f.film_id = i.film_id
     INNER JOIN rental r ON i.inventory_id = r.inventory_id
@@ -42,5 +44,64 @@ filmwise_avg_rental_duration AS (
         INNER JOIN inventory i ON f.film_id = i.film_id
         INNER JOIN rental r ON i.inventory_id = r.inventory_id
         GROUP BY 1
+),
+--CTE to calculate rental_frequency
+rental_frequency AS (
+    SELECT f.film_id, COUNT(*),
+    COUNT(*)::numeric/365 AS rental_frequency_2005,
+    PERCENT_RANK() OVER (ORDER BY COUNT(*)::numeric/365) AS rf_rank
+    FROM film f
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+    GROUP BY 1
+    ORDER BY 1 ASC
+),
+total_copies AS (
+    SELECT f.film_id, COUNT(*) AS total_invent
+    FROM film f
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    GROUP BY 1
+),
+last_ninety_days AS (
+    SELECT f.film_id, COUNT(DISTINCT i.inventory_id) AS active_invent
+    FROM film f
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+    WHERE r.rental_date > '2006-01-01'::date - 90
+    GROUP BY 1
+),
+Utilization_calculation AS (
+    SELECT tc.film_id, 
+    lnd.active_invent::numeric/tc.total_invent AS util,
+    PERCENT_RANK() OVER (ORDER BY lnd.active_invent::numeric/tc.total_invent) AS util_rank
+    FROM total_copies tc
+    INNER JOIN last_ninety_days lnd ON tc.film_id = lnd.film_id
+    ORDER BY 1 ASC
 )
-SELECT * FROM filmwise_avg_rental_duration;
+SELECT fm.film_id,fm.title, cat.name,
+    fm.total_rentals,
+    fm.total_revenue,
+    fm.rev_rank,
+    fard.allowed_rental_duration,
+    fard.actual_average_duration,
+    rf.rental_frequency_2005,
+    rf.rf_rank,
+    uc.util,
+    uc.util_rank,
+    CASE
+        WHEN fm.rev_rank > 0.8 AND rf.rf_rank > 0.8
+            THEN 'Blockbusters'
+        WHEN fm.rev_rank < 0.3 AND rf.rf_rank < 0.3
+            THEN 'Underperformers'
+        WHEN uc.util > 0.8 AND fard.actual_average_duration > fard.allowed_rental_duration
+            THEN 'Efficient Classics'
+        WHEN uc.util < 0.3 AND fm.total_rentals < (SELECT AVG(total_rentals) FROM film_metrics)
+            THEN 'Slow-Movers'
+        ELSE 'Balanced Performers'
+        END AS performance_category
+FROM film_metrics fm
+INNER JOIN filmwise_avg_rental_duration fard ON fm.film_id = fard.film_id
+INNER JOIN rental_frequency rf ON fard.film_id = rf.film_id
+LEFT JOIN utilization_calculation  uc ON rf.film_id = uc.film_id
+INNER JOIN film_category fc ON fm.film_id = fc.film_id
+INNER JOIN category cat ON fc.category_id = cat.category_id;
