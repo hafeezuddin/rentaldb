@@ -18,7 +18,7 @@ Compare performance between store locations
 Identify films that perform well in one store but poorly in another
 
 
-Expected Output Columns:
+Desired Output Business requirement:
 film_id, title, category_name, total_rentals, total_revenue, avg_rental_duration, rental_frequency, inventory_utilization_rate
 performance_category, store_1_rentals, store_2_rentals, performance_disparity */
 
@@ -53,6 +53,7 @@ rental_frequency AS (
     FROM film f
     INNER JOIN inventory i ON f.film_id = i.film_id
     INNER JOIN rental r ON i.inventory_id = r.inventory_id
+    WHERE r.return_date IS NOT NULL
     GROUP BY 1
     ORDER BY 1 ASC
 ),
@@ -77,6 +78,17 @@ Utilization_calculation AS (
     FROM total_copies tc
     INNER JOIN last_ninety_days lnd ON tc.film_id = lnd.film_id
     ORDER BY 1 ASC
+),
+store_wise_analysis AS (
+    SELECT f.film_id, 
+        COUNT(CASE WHEN i.store_id =1 THEN 1 END) AS store1_rental,
+        COUNT(CASE WHEN i.store_id =2 THEN 1 END) AS store2_rental
+    FROM film f
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+    WHERE r.return_date IS NOT NULL
+    GROUP BY 1
+    ORDER BY f.film_id ASC
 )
 SELECT fm.film_id,fm.title, cat.name,
     fm.total_rentals,
@@ -86,16 +98,19 @@ SELECT fm.film_id,fm.title, cat.name,
     fard.actual_average_duration,
     rf.rental_frequency_2005,
     rf.rf_rank,
-    uc.util,
+    ROUND(uc.util * 100,2) AS inventory_utilisation_rate,
     uc.util_rank,
+    swa.store1_rental,
+    swa.store2_rental,
+    (swa.store1_rental - swa.store2_rental) AS disparity,
     CASE
         WHEN fm.rev_rank > 0.8 AND rf.rf_rank > 0.8
             THEN 'Blockbusters'
         WHEN fm.rev_rank < 0.3 AND rf.rf_rank < 0.3
             THEN 'Underperformers'
-        WHEN uc.util > 0.8 AND fard.actual_average_duration > fard.allowed_rental_duration
+        WHEN uc.util > 80 AND fard.actual_average_duration > fard.allowed_rental_duration
             THEN 'Efficient Classics'
-        WHEN uc.util < 0.3 AND fm.total_rentals < (SELECT AVG(total_rentals) FROM film_metrics)
+        WHEN uc.util < 30 AND fm.total_rentals < (SELECT AVG(total_rentals) FROM film_metrics)
             THEN 'Slow-Movers'
         ELSE 'Balanced Performers'
         END AS performance_category
@@ -104,4 +119,5 @@ INNER JOIN filmwise_avg_rental_duration fard ON fm.film_id = fard.film_id
 INNER JOIN rental_frequency rf ON fard.film_id = rf.film_id
 LEFT JOIN utilization_calculation  uc ON rf.film_id = uc.film_id
 INNER JOIN film_category fc ON fm.film_id = fc.film_id
-INNER JOIN category cat ON fc.category_id = cat.category_id;
+INNER JOIN category cat ON fc.category_id = cat.category_id
+INNER JOIN store_wise_analysis swa ON fm.film_id = swa.film_id;
