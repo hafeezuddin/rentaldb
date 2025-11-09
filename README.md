@@ -12,12 +12,12 @@ Author: Khaja Hafeezuddin Shaik
 	- `01_Basic_Data_Exploration/` (e.g. `basic_Analysis.sql`)
 	- `02_Dimensions_Exploration/`
 	- `03_Ranking_Analysis/`
-	- `04_Data_Segmentation/`
-	- `05_Cummulative_Analysis/`
+	- `04_Data_Segmentation/` (Advanced)
+	- `05_Cummulative_Analysis/` 
 	- `06_Recommendation_System/` (contains `recommendation_system.sql`)
 	- `07_Performance_Analysis/`
-	- `08_Inventory_Analysis/`
-	- `09_Customer_Insights/`
+	- `08_Inventory_Analysis/` (Advanced)
+	- `09_Customer_Insights/` (Advanced)
 
 The repository organizes queries as many smaller, focused SQL files rather than a single monolithic file. Use the `Scripts/` subfolders to find queries by topic.
 
