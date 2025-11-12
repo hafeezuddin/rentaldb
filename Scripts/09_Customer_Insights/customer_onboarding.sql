@@ -16,21 +16,15 @@ Required Analysis: Compare average 2005 spending between Premium-start vs Standa
 
 
 Metric 2: 2005 Engagement & Quality Progression
-
 Objective: Analyze if starting with premium films leads to different rental behaviors within 2005.
-
 Business Question: "Do premium-start customers rent more frequently and continue choosing premium films?"
 
 Calculation:
-
     90-Day Retention: % of customers who rented again within 90 days of their first 2005 rental
-
     2005 Rental Frequency: Total 2005 rentals per customer
-
     Premium Mix: % of each customer's 2005 rentals that are premium films
 
 Strategic Deliverable (2005 Analysis):
-
 A focused analysis answering:
     Short-term ROI: Do premium-start customers generate enough additional 2005 revenue to justify the higher inventory cost?
     Engagement Pattern: Do they rent more frequently within their first year?
@@ -39,7 +33,7 @@ Data Scope: January 1 - December 31, 2005 only */
 
 --CTE to filter who started rentals with with premium films (1st ever rental)
 WITH customer_first_rental_analysis AS (
-SELECT sq1.customer_id,
+SELECT sq1.customer_id, sq1.rental_date, 
 CASE
     WHEN sq1.replacement_cost >= 20
         THEN 'Premium Start'
@@ -70,6 +64,18 @@ category_avg AS (
     ROUND(AVG(ts.total_spent) OVER (PARTITION BY cfra.first_rental_quality),2) AS cat_avg
     FROM customer_first_rental_analysis cfra
     INNER JOIN total_spent ts ON cfra.customer_id = ts.customer_id
+),
+rentention_cte AS (
+  SELECT sq2.customer_id, sq2.rental_date
+FROM (
+SELECT c.customer_id, r.rental_date, f.title, f.replacement_cost,
+    row_number() OVER (PARTITION BY c.customer_id ORDER BY c.customer_id, r.rental_date ASC) AS first_rental
+    FROM customer c
+INNER JOIN rental r ON c.customer_id = r.customer_id
+INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+INNER JOIN film f ON i.film_id = f.film_id
+WHERE r.return_date IS NOT NULL AND (r.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+) sq2
 )
-SELECT * FROM category_avg
-ORDER BY 1;
+SELECT * FROM rentention_cte
+ORDER BY 1 ASC;
