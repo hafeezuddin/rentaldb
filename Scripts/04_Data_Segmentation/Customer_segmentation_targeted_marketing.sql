@@ -37,15 +37,15 @@ D. Category Loyalty Score (25 points)
 
 
 
+
 METRIC 2: REACTIVATION PROBABILITY SCORE (0-100 Points)
 
 A. Seasonal Pattern Score (50 points)
-
     Rented in BOTH November & December 2005: 50 points
-
     Rented in EITHER November or December: 30 points
-
     No holiday period rentals: 10 points
+
+
 
 B. Rental Gap Analysis (50 points)
 
@@ -248,4 +248,26 @@ category_loyalty AS (
         INNER JOIN rental r4 ON sq6.customer_id = r4.customer_id
         GROUP BY 1,2
     ) sq7   
+)
+--Metric #2
+--CTE to calculate Metric #2 seasonal pattern score
+seasonal_pattern AS (
+  SELECT sq8.customer_id,
+  CASE
+    WHEN has_november AND has_december IS TRUE
+        THEN 50
+    WHEN has_november OR has_december IS TRUE
+        THEN 30
+     ELSE 10
+    END AS pattern_score
+  FROM ( 
+    SELECT 
+        customer_id,
+        --For each customer, look at ALL their rentals and tell me if ANY were in November.
+        BOOL_OR(EXTRACT(MONTH FROM rental_date) = 11) as has_november,
+        BOOL_OR(EXTRACT(MONTH FROM rental_date) = 12) as has_december
+    FROM rental
+    WHERE rental_date BETWEEN '2005-01-01' AND '2005-12-31'
+    GROUP BY customer_id
+  ) sq8
 )
