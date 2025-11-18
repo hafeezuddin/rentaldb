@@ -37,82 +37,54 @@ D. Category Loyalty Score (25 points)
 
 
 
-
 METRIC 2: REACTIVATION PROBABILITY SCORE (0-100 Points)
-
 A. Seasonal Pattern Score (50 points)
     Rented in BOTH November & December 2005: 50 points
     Rented in EITHER November or December: 30 points
     No holiday period rentals: 10 points
 
-
-
 B. Rental Gap Analysis (50 points)
-
     Average days between rentals < 30 days: 50 points
-
     Average days between rentals 30-60 days: 30 points
-
     Average days between rentals 60-90 days: 20 points
-
     Average days >90 days OR only one rental: 10 points
 
-
 CUSTOMER SEGMENTATION & OFFER STRATEGY
-
 SEGMENT 1: CHAMPIONS
-
     Criteria: Health Score ≥ 80 AND Probability Score ≥ 80
-
     Offer: Exclusive loyalty rewards (early access to new releases)
-
     Max Bid Price: $15 per customer
 
 SEGMENT 2: AT-RISK LOYALISTS
-
     Criteria: Health Score ≥ 70 AND Probability Score < 60
-
     Offer: "We Miss You" 25% discount
-
     Max Bid Price: $12 per customer
 
 SEGMENT 3: RISING STARS
-
     Criteria: Health Score 60-79 AND Probability Score ≥ 70
-
     Offer: New release promotions + free rental
-
     Max Bid Price: $10 per customer
 
 SEGMENT 4: CASUAL VIEWERS
-
     Criteria: Health Score < 60 AND Probability Score ≥ 50
-
     Offer: Budget bundle packages
-
     Max Bid Price: $7 per customer
 
 SEGMENT 5: INACTIVE
-
     Criteria: All other customers
-
     Offer: Win-back trial offer
-
     Max Bid Price: $5 per customer
 
 DELIVERABLE REQUIREMENTS
 
 Final Output Must Include:
-
     customer_id, first_name, last_name, email
-
     health_score, probability_score, composite_score
+    customer_segment, recommended_offer, total_2005_spent, last_rental_date,
+    total_2005_rentals,
 
-    customer_segment, recommended_offer, max_bid_price
-
+    max_bid_price
     top_category_1, top_category_2, category_concentration_pct
-
-    total_2005_spent, last_rental_date, total_2005_rentals
 
 Business Rules:
 
@@ -248,7 +220,7 @@ category_loyalty AS (
         INNER JOIN rental r4 ON sq6.customer_id = r4.customer_id
         GROUP BY 1,2
     ) sq7   
-)
+),
 --Metric #2
 --CTE to calculate Metric #2 seasonal pattern score
 seasonal_pattern AS (
@@ -263,11 +235,120 @@ seasonal_pattern AS (
   FROM ( 
     SELECT 
         customer_id,
-        --For each customer, look at ALL their rentals and tell me if ANY were in November.
+        --For each customer, look at ALL their rentals and check if ANY were in November/december.
         BOOL_OR(EXTRACT(MONTH FROM rental_date) = 11) as has_november,
         BOOL_OR(EXTRACT(MONTH FROM rental_date) = 12) as has_december
     FROM rental
     WHERE rental_date BETWEEN '2005-01-01' AND '2005-12-31'
     GROUP BY customer_id
   ) sq8
+),
+/*
+--ALT TO BLOOL_OR
+SELECT sq0.customer_id, 
+    MAX(rented_november) AS has_rented_in_nov, 
+    MAX(rented_december) AS has rented_in_dec,
+    CASE
+        WHEN MAX(rented_november) = 1 AND MAX(rented_december) =1
+            THEN 50
+        WHEN MAX(rented_november) =1 OR MAX(rented_december)=1
+            THEN 30
+        ELSE 10
+        END AS pattern_score
+FROM (
+        SELECT
+        customer_id,
+        dszaw.  
+        CASE WHEN EXTRACT(MONTH FROM rental_date) = 11 
+            THEN 1 ELSE 0 END as rented_november,
+
+        CASE WHEN EXTRACT(MONTH FROM rental_date) = 12 
+            THEN 1 ELSE 0 END as rented_december
+
+    FROM rental
+    WHERE rental_date BETWEEN '2005-01-01' AND '2005-12-31'
+    ) sq0
+    GROUP BY 1
+*/
+--CTE for rental gap analysis
+rental_gap_analysis AS (
+    SELECT sq9.customer_id, ROUND(AVG(diff),2) AS average_days_between_rentals,
+    CASE
+        WHEN ROUND(AVG(diff),2) < 30 THEN 50
+        WHEN ROUND(AVG(diff),2) BETWEEN 30 AND 60
+            THEN 30
+        WHEN ROUND(AVG(diff),2) BETWEEN 61 AND 90
+            THEN 20
+        WHEN ROUND(AVG(diff),2) > 90
+            THEN 10
+        ELSE 0
+        END AS rental_gap_score 
+    FROM
+    (
+    SELECT c4.customer_id,
+    r4.rental_date::date,
+    LAG(r4.rental_date::date) OVER (PARTITION BY c4.customer_id ORDER BY c4.customer_id, r4.rental_date::date ASC) AS lag_date,
+    CASE
+        WHEN LAG(r4.rental_date::date) OVER (PARTITION BY c4.customer_id ORDER BY c4.customer_id, r4.rental_date::date ASC) IS NULL
+            THEN 0
+        ELSE r4.rental_date::date - LAG(r4.rental_date::date) OVER (PARTITION BY c4.customer_id ORDER BY c4.customer_id, r4.rental_date::date ASC)
+        END AS diff
+    FROM customer c4
+    INNER JOIN rental r4 ON c4.customer_id = r4.customer_id
+    ORDER BY 1,2 ASC
+    ) sq9
+    GROUP BY sq9.customer_id
 )
+
+SELECT sq10.customer_id, CONCAT(c5.first_name,' ', c5.last_name), c5.email, sq10.recency_score, sq10.frequency_score, sq10.monetary_score,
+    sq10.loyalty_score, sq10.pattern_score, sq10.rental_gap_score, sq10.customer_health_score, sq10.probability_score, 
+    sq10.composite_score,sq10.segmentation, MAX(r5.rental_date)::date AS last_rental_date,
+    SUM(p2.amount) AS total_spent, COUNT(DISTINCT r5.rental_id) AS total_rentals,
+    CASE
+        WHEN sq10.segmentation = 'Champions'
+            THEN 'Exclusive loyalty rewards (early access to new releases)'
+        WHEN sq10.segmentation = 'At Risk Loyalist'
+            THEN 'Offer: We Miss you. 25% Offer'
+        WHEN sq10.segmentation = 'Rising Stars'
+            THEN 'New release promotions + free rental'
+        WHEN sq10.segmentation = 'Casual Viewers'
+            THEN 'Budget bundle packages'
+        ELSE
+            'Win-back trial offer'
+        END AS recommended_offer  
+FROM (
+    SELECT rs.customer_id, rs.recency_score, frequency_score, ms.monetary_score,
+    cl.loyalty_score, sp.pattern_score, rga.rental_gap_score,
+    rs.recency_score + frequency_score + ms.monetary_score + cl.loyalty_score AS customer_health_score,
+    sp.pattern_score + rga.rental_gap_score AS probability_score,
+    (rs.recency_score + frequency_score + ms.monetary_score + cl.loyalty_score ) * (sp.pattern_score + rga.rental_gap_score) AS composite_score,
+    CASE
+        WHEN rs.recency_score + frequency_score + ms.monetary_score + cl.loyalty_score >= 80
+            AND sp.pattern_score + rga.rental_gap_score >=80
+                THEN 'Champions'
+        WHEN rs.recency_score + frequency_score + ms.monetary_score + cl.loyalty_score >= 70
+            AND sp.pattern_score + rga.rental_gap_score < 60
+                THEN 'At Risk Loyalist'
+        WHEN rs.recency_score + frequency_score + ms.monetary_score + cl.loyalty_score BETWEEN 60 AND 79
+            AND sp.pattern_score + rga.rental_gap_score >= 70
+                THEN 'Rising Stars'
+        WHEN rs.recency_score + frequency_score + ms.monetary_score + cl.loyalty_score < 60
+            AND sp.pattern_score + rga.rental_gap_score >= 50
+                THEN 'Casual Viewers'
+        ELSE
+            'Inactive'
+        END AS segmentation
+    FROM recency_Score rs
+    INNER JOIN frequency_score fs ON rs.customer_id = fs.customer_id
+    INNER JOIN monetary_score ms ON rs.customer_id = ms.customer_id
+    INNER JOIN category_loyalty cl ON rs.customer_id = cl.customer_id
+    INNER JOIN seasonal_pattern sp ON rs.customer_id = sp.customer_id
+    INNER JOIN rental_gap_analysis rga ON rs.customer_id = rga.customer_id
+    ORDER BY 1 ASC
+) sq10
+INNER JOIN rental r5 ON sq10.customer_id = r5.customer_id
+INNER JOIN payment p2 ON r5.rental_id = p2.rental_id
+INNER JOIN customer c5 ON sq10.customer_id = c5.customer_id
+WHERE r5.return_date IS NOT NULL AND (r5.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13
+ORDER BY 1 ASC
