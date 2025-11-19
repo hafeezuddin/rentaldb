@@ -81,21 +81,14 @@ Final Output Must Include:
     customer_id, first_name, last_name, email
     health_score, probability_score, composite_score
     customer_segment, recommended_offer, total_2005_spent, last_rental_date,
-    total_2005_rentals,
-
-    max_bid_price
-    top_category_1, top_category_2, category_concentration_pct
+    total_2005_rentals, max_bid_price
+    top_category_1, top_category_2
 
 Business Rules:
-
     Sort customers by composite_score DESC (Health × Probability)
-
-    Apply budget constraint: Sum of max_bid_price ≤ $50,000
-
     Include only customers with at least one 2005 rental
-
-    All calculations based on 2005 data only */
-
+    All calculations based on 2005 data only.
+    Fixed buget of 50000 */
 
 --CTE to calculate Metric #1: recency_score
 WITH recency_score AS (
@@ -114,14 +107,14 @@ WITH recency_score AS (
             THEN 5
         END AS recency_score  
     FROM
-    (
-    SELECT c.customer_id,
-    EXTRACT('Month' FROM MAX(r.rental_date)) AS latest_rental_month
-    FROM customer c
-    INNER JOIN rental r ON c.customer_id = r.customer_id
-    WHERE r.return_date IS NOT NULL AND (r.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
-    GROUP BY 1
-    ) sq1
+        (
+        SELECT c.customer_id,
+        EXTRACT('Month' FROM MAX(r.rental_date)) AS latest_rental_month
+        FROM customer c
+        INNER JOIN rental r ON c.customer_id = r.customer_id
+        WHERE r.return_date IS NOT NULL AND (r.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+        GROUP BY 1
+        ) sq1
 ),
 --CTE to calculate Metric #1: frequency_score
 frequency_score AS (
@@ -140,14 +133,14 @@ frequency_score AS (
             THEN 5
         END AS frequency_score
     FROM
-    (
-    SELECT c1.customer_id, 
-    COUNT(DISTINCT r1.rental_id) AS total_rentals
-    FROM customer c1
-    INNER JOIN rental r1 ON c1.customer_id = r1.customer_id
-    WHERE r1.return_date IS NOT NULL AND (r1.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
-    GROUP BY 1
-    )sq2
+        (
+        SELECT c1.customer_id, 
+        COUNT(DISTINCT r1.rental_id) AS total_rentals
+        FROM customer c1
+        INNER JOIN rental r1 ON c1.customer_id = r1.customer_id
+        WHERE r1.return_date IS NOT NULL AND (r1.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+        GROUP BY 1
+        )sq2
 ),
 --CTE to calculate Metric #1: monetary_score
 monetary_score AS (
@@ -164,28 +157,33 @@ monetary_score AS (
         ELSE 5
         END AS monetary_score
     FROM
-    (
-    SELECT c2.customer_id,
-    SUM(p.amount) AS total_spent,
-    PERCENT_RANK() OVER (ORDER BY SUM(p.amount)) AS spent_rank
-    FROM customer c2
-    INNER JOIN rental r2 ON c2.customer_id = r2.customer_id
-    INNER JOIN payment p ON r2.rental_id = p.rental_id
-    WHERE r2.return_date IS NOT NULL AND (r2.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
-    GROUP BY 1
-    )sq3
+        (
+        SELECT c2.customer_id,
+        SUM(p.amount) AS total_spent,
+        PERCENT_RANK() OVER (ORDER BY SUM(p.amount)) AS spent_rank
+        FROM customer c2
+        INNER JOIN rental r2 ON c2.customer_id = r2.customer_id
+        INNER JOIN payment p ON r2.rental_id = p.rental_id
+        WHERE r2.return_date IS NOT NULL AND (r2.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+        GROUP BY 1
+        )sq3
 ),
+
 --CTE to calculate Metric #1: category_loyalty_score
+--This cte pull's in customer top two rented categories and calculates category_share by dividing it with customer_total_rentals using multiple subquery implmentation
 category_loyalty AS (
-    
     SELECT sq7.customer_id, sq7.top_cat_share,
-    CASE
-    WHEN sq7.top_cat_share >= 80 THEN 25
-    WHEN sq7.top_cat_share >= 60 THEN 20
-    WHEN sq7.top_cat_share >= 40 THEN 15
-    WHEN sq7.top_cat_share >= 20 THEN 10
-    ELSE 5
-    END AS loyalty_score 
+        CASE
+            WHEN sq7.top_cat_share >= 80 
+                THEN 25
+            WHEN sq7.top_cat_share >= 60 
+                THEN 20
+            WHEN sq7.top_cat_share >= 40 
+                THEN 15
+            WHEN sq7.top_cat_share >= 20 
+                THEN 10
+            ELSE 5
+            END AS loyalty_score 
     FROM
     (
         SELECT sq6.customer_id, sq6.top_two_cat_rentals, 
@@ -221,6 +219,7 @@ category_loyalty AS (
         GROUP BY 1,2
     ) sq7   
 ),
+
 --Metric #2
 --CTE to calculate Metric #2 seasonal pattern score
 seasonal_pattern AS (
@@ -235,7 +234,7 @@ seasonal_pattern AS (
   FROM ( 
     SELECT 
         customer_id,
-        --For each customer, look at ALL their rentals and check if ANY were in November/december.
+        --For each customer, look at ALL their rentals and flag if ANY were in November/december.
         BOOL_OR(EXTRACT(MONTH FROM rental_date) = 11) as has_november,
         BOOL_OR(EXTRACT(MONTH FROM rental_date) = 12) as has_december
     FROM rental
@@ -258,12 +257,11 @@ SELECT sq0.customer_id,
 FROM (
         SELECT
         customer_id,
-        dszaw.  
         CASE WHEN EXTRACT(MONTH FROM rental_date) = 11 
-            THEN 1 ELSE 0 END as rented_november,
+            THEN 1 ELSE 0 END as rented_november_flag,
 
         CASE WHEN EXTRACT(MONTH FROM rental_date) = 12 
-            THEN 1 ELSE 0 END as rented_december
+            THEN 1 ELSE 0 END as rented_december_flag
 
     FROM rental
     WHERE rental_date BETWEEN '2005-01-01' AND '2005-12-31'
@@ -298,12 +296,57 @@ rental_gap_analysis AS (
     ORDER BY 1,2 ASC
     ) sq9
     GROUP BY sq9.customer_id
-)
+),
 
+--CTE to get top #1 category rented by customers by no_of_rentals
+top_cat1 AS (
+    SELECT sq10.customer_id, sq10.name
+                FROM
+                (
+                    SELECT c3.customer_id, 
+                    cat.name, 
+                    COUNT(*) AS total_rentals,
+                    ROW_NUMBER() OVER (PARTITION BY c3.customer_id ORDER BY COUNT(*) DESC) AS rn
+                    FROM customer c3
+                    INNER JOIN rental r3 ON c3.customer_id = r3.customer_id
+                    INNER JOIN inventory i ON r3.inventory_id = i.inventory_id
+                    INNER JOIN film f ON i.film_id = f.film_id
+                    INNER JOIN film_category fc ON f.film_id = fc.film_id
+                    INNER JOIN category cat ON fc.category_id = cat.category_id
+                    WHERE r3.return_date IS NOT NULL AND (r3.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+                    GROUP BY 1,2
+                    ORDER BY 1
+                )sq10
+                    WHERE sq10.rn =1
+),
+
+--CTE to get top category #2 rented by customers by no_of_rentals
+top_cat2 AS (
+SELECT sq11.customer_id, sq11.name
+                FROM
+                (
+                    SELECT c3.customer_id, 
+                    cat.name, 
+                    COUNT(*) AS total_rentals,
+                    ROW_NUMBER() OVER (PARTITION BY c3.customer_id ORDER BY COUNT(*) DESC) AS rn
+                    FROM customer c3
+                    INNER JOIN rental r3 ON c3.customer_id = r3.customer_id
+                    INNER JOIN inventory i ON r3.inventory_id = i.inventory_id
+                    INNER JOIN film f ON i.film_id = f.film_id
+                    INNER JOIN film_category fc ON f.film_id = fc.film_id
+                    INNER JOIN category cat ON fc.category_id = cat.category_id
+                    WHERE r3.return_date IS NOT NULL AND (r3.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
+                    GROUP BY 1,2
+                    ORDER BY 1
+                )sq11
+                    WHERE sq11.rn =2
+),
+--CTE to aggregate all metrics (Metric: customer_health_score_metric, Reactivation metric)
+aggregation_cte AS (
 SELECT sq10.customer_id, CONCAT(c5.first_name,' ', c5.last_name), c5.email, sq10.recency_score, sq10.frequency_score, sq10.monetary_score,
     sq10.loyalty_score, sq10.pattern_score, sq10.rental_gap_score, sq10.customer_health_score, sq10.probability_score, 
     sq10.composite_score,sq10.segmentation, MAX(r5.rental_date)::date AS last_rental_date,
-    SUM(p2.amount) AS total_spent, COUNT(DISTINCT r5.rental_id) AS total_rentals,
+    SUM(p2.amount) AS total_spent, COUNT(DISTINCT r5.rental_id) AS total_rentals, tc1.name AS top_category1, tc2.name AS top_category2,
     CASE
         WHEN sq10.segmentation = 'Champions'
             THEN 'Exclusive loyalty rewards (early access to new releases)'
@@ -315,7 +358,18 @@ SELECT sq10.customer_id, CONCAT(c5.first_name,' ', c5.last_name), c5.email, sq10
             THEN 'Budget bundle packages'
         ELSE
             'Win-back trial offer'
-        END AS recommended_offer  
+        END AS recommended_offer,
+    CASE
+        WHEN segmentation = 'Champions' 
+            THEN 15
+        WHEN segmentation = 'At Risk Loyalist' 
+            THEN 12
+        WHEN segmentation = 'Rising Stars' 
+            THEN 10
+        WHEN segmentation = 'Casual Viewers' 
+            THEN 7
+        ELSE 5  -- Inactive segment
+        END AS max_bid_price
 FROM (
     SELECT rs.customer_id, rs.recency_score, frequency_score, ms.monetary_score,
     cl.loyalty_score, sp.pattern_score, rga.rental_gap_score,
@@ -349,6 +403,17 @@ FROM (
 INNER JOIN rental r5 ON sq10.customer_id = r5.customer_id
 INNER JOIN payment p2 ON r5.rental_id = p2.rental_id
 INNER JOIN customer c5 ON sq10.customer_id = c5.customer_id
+INNER JOIN top_cat1 tc1 ON sq10.customer_id = tc1.customer_id
+INNER JOIN top_cat2 tc2 ON sq10.customer_id = tc2.customer_id
 WHERE r5.return_date IS NOT NULL AND (r5.rental_date BETWEEN '01-01-2005' AND '12-31-2005')
-GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13
-ORDER BY 1 ASC
+GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,tc1.name, tc2.name
+ORDER BY sq10.composite_score DESC
+)
+--Main query with added budget constraint
+SELECT * 
+FROM (
+    SELECT *,
+    SUM(ac.max_bid_price) OVER (ORDER BY ac.composite_score DESC, customer_id ASC) AS cm_budget
+    FROM aggregation_cte ac
+) 
+WHERE cm_budget <= 50000;
