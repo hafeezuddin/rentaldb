@@ -34,9 +34,6 @@ D. Category Loyalty Score (25 points)
     40-59% in top 2 categories: 15 points
     20-39% in top 2 categories: 10 points
     <20% category concentration: 5 points
-
-
-
 METRIC 2: REACTIVATION PROBABILITY SCORE (0-100 Points)
 A. Seasonal Pattern Score (50 points)
     Rented in BOTH November & December 2005: 50 points
