@@ -1,7 +1,7 @@
 /*
-We have $50,000 allocated for a Q1 2006 customer reactivation campaign. With thousands of 2005 customers, 
+We have $50,000 allocated for a Q1 2006 customer reactivation campaign. With thousands of 2005 customers,
 we need to strategically target those most likely to respond to our offers.
-Your Mission: Identify which 2005 customers to target, determine the optimal offer for each segment, 
+Your Mission: Identify which 2005 customers to target, determine the optimal offer for each segment,
 and ensure we maximize ROI within our budget constraints.
 
 ANALYTICAL REQUIREMENTS
@@ -89,7 +89,7 @@ Business Rules:
 
 --CTE to calculate Metric #1: recency_score
 WITH recency_score AS (
-    SELECT sq1.customer_id, 
+    SELECT sq1.customer_id,
     sq1.latest_rental_month,
     CASE
         WHEN sq1.latest_rental_month = 12
@@ -102,7 +102,7 @@ WITH recency_score AS (
             THEN 10
         WHEN sq1.latest_rental_month BETWEEN 01 AND 06
             THEN 5
-        END AS recency_score  
+        END AS recency_score
     FROM
         (
         SELECT c.customer_id,
@@ -115,7 +115,7 @@ WITH recency_score AS (
 ),
 --CTE to calculate Metric #1: frequency_score
 frequency_score AS (
-    SELECT sq2.customer_id, 
+    SELECT sq2.customer_id,
     sq2.total_rentals,
     CASE
         WHEN sq2.total_rentals >= 15
@@ -131,7 +131,7 @@ frequency_score AS (
         END AS frequency_score
     FROM
         (
-        SELECT c1.customer_id, 
+        SELECT c1.customer_id,
         COUNT(DISTINCT r1.rental_id) AS total_rentals
         FROM customer c1
         INNER JOIN rental r1 ON c1.customer_id = r1.customer_id
@@ -171,31 +171,31 @@ monetary_score AS (
 category_loyalty AS (
     SELECT sq7.customer_id, sq7.top_cat_share,
         CASE
-            WHEN sq7.top_cat_share >= 80 
+            WHEN sq7.top_cat_share >= 80
                 THEN 25
-            WHEN sq7.top_cat_share >= 60 
+            WHEN sq7.top_cat_share >= 60
                 THEN 20
-            WHEN sq7.top_cat_share >= 40 
+            WHEN sq7.top_cat_share >= 40
                 THEN 15
-            WHEN sq7.top_cat_share >= 20 
+            WHEN sq7.top_cat_share >= 20
                 THEN 10
             ELSE 5
-            END AS loyalty_score 
+            END AS loyalty_score
     FROM
     (
-        SELECT sq6.customer_id, sq6.top_two_cat_rentals, 
+        SELECT sq6.customer_id, sq6.top_two_cat_rentals,
         COUNT(DISTINCT r4.rental_id) AS total_rentals,
         sq6.top_two_cat_rentals/COUNT(DISTINCT r4.rental_id) * 100 AS top_cat_share
         FROM
         (
             SELECT sq5.customer_id, SUM(sq5.total_rentals) AS top_two_cat_rentals
-            FROM 
+            FROM
             (
                 SELECT sq4.customer_id, sq4.name, sq4.total_rentals
                 FROM
                 (
-                    SELECT c3.customer_id, 
-                    cat.name, 
+                    SELECT c3.customer_id,
+                    cat.name,
                     COUNT(*) AS total_rentals,
                     ROW_NUMBER() OVER (PARTITION BY c3.customer_id ORDER BY COUNT(*) DESC) AS rn
                     FROM customer c3
@@ -214,7 +214,7 @@ category_loyalty AS (
         ) sq6
         INNER JOIN rental r4 ON sq6.customer_id = r4.customer_id
         GROUP BY 1,2
-    ) sq7   
+    ) sq7
 ),
 
 --Metric #2
@@ -228,8 +228,8 @@ seasonal_pattern AS (
         THEN 30
      ELSE 10
     END AS pattern_score
-  FROM ( 
-    SELECT 
+  FROM (
+    SELECT
         customer_id,
         --For each customer, look at ALL their rentals and flag if ANY were in November/december.
         BOOL_OR(EXTRACT(MONTH FROM rental_date) = 11) as has_november,
@@ -241,8 +241,8 @@ seasonal_pattern AS (
 ),
 /*
 --ALT TO BLOOL_OR
-SELECT sq0.customer_id, 
-    MAX(rented_november) AS has_rented_in_nov, 
+SELECT sq0.customer_id,
+    MAX(rented_november) AS has_rented_in_nov,
     MAX(rented_december) AS has rented_in_dec,
     CASE
         WHEN MAX(rented_november) = 1 AND MAX(rented_december) =1
@@ -254,10 +254,10 @@ SELECT sq0.customer_id,
 FROM (
         SELECT
         customer_id,
-        CASE WHEN EXTRACT(MONTH FROM rental_date) = 11 
+        CASE WHEN EXTRACT(MONTH FROM rental_date) = 11
             THEN 1 ELSE 0 END as rented_november_flag,
 
-        CASE WHEN EXTRACT(MONTH FROM rental_date) = 12 
+        CASE WHEN EXTRACT(MONTH FROM rental_date) = 12
             THEN 1 ELSE 0 END as rented_december_flag
 
     FROM rental
@@ -277,7 +277,7 @@ rental_gap_analysis AS (
         WHEN ROUND(AVG(diff),2) > 90
             THEN 10
         ELSE 0
-        END AS rental_gap_score 
+        END AS rental_gap_score
     FROM
     (
     SELECT c4.customer_id,
@@ -300,8 +300,8 @@ top_cat1 AS (
     SELECT sq10.customer_id, sq10.name
                 FROM
                 (
-                    SELECT c3.customer_id, 
-                    cat.name, 
+                    SELECT c3.customer_id,
+                    cat.name,
                     COUNT(*) AS total_rentals,
                     ROW_NUMBER() OVER (PARTITION BY c3.customer_id ORDER BY COUNT(*) DESC) AS rn
                     FROM customer c3
@@ -322,8 +322,8 @@ top_cat2 AS (
 SELECT sq11.customer_id, sq11.name
                 FROM
                 (
-                    SELECT c3.customer_id, 
-                    cat.name, 
+                    SELECT c3.customer_id,
+                    cat.name,
                     COUNT(*) AS total_rentals,
                     ROW_NUMBER() OVER (PARTITION BY c3.customer_id ORDER BY COUNT(*) DESC) AS rn
                     FROM customer c3
@@ -341,7 +341,7 @@ SELECT sq11.customer_id, sq11.name
 --CTE to aggregate all metrics (Metric: customer_health_score_metric, Reactivation metric)
 aggregation_cte AS (
 SELECT sq10.customer_id, CONCAT(c5.first_name,' ', c5.last_name), c5.email, sq10.recency_score, sq10.frequency_score, sq10.monetary_score,
-    sq10.loyalty_score, sq10.pattern_score, sq10.rental_gap_score, sq10.customer_health_score, sq10.probability_score, 
+    sq10.loyalty_score, sq10.pattern_score, sq10.rental_gap_score, sq10.customer_health_score, sq10.probability_score,
     sq10.composite_score,sq10.segmentation, MAX(r5.rental_date)::date AS last_rental_date,
     SUM(p2.amount) AS total_spent, COUNT(DISTINCT r5.rental_id) AS total_rentals, tc1.name AS top_category1, tc2.name AS top_category2,
     CASE
@@ -357,13 +357,13 @@ SELECT sq10.customer_id, CONCAT(c5.first_name,' ', c5.last_name), c5.email, sq10
             'Win-back trial offer'
         END AS recommended_offer,
     CASE
-        WHEN segmentation = 'Champions' 
+        WHEN segmentation = 'Champions'
             THEN 15
-        WHEN segmentation = 'At Risk Loyalist' 
+        WHEN segmentation = 'At Risk Loyalist'
             THEN 12
-        WHEN segmentation = 'Rising Stars' 
+        WHEN segmentation = 'Rising Stars'
             THEN 10
-        WHEN segmentation = 'Casual Viewers' 
+        WHEN segmentation = 'Casual Viewers'
             THEN 7
         ELSE 5  -- Inactive segment
         END AS max_bid_price
@@ -407,10 +407,10 @@ GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,tc1.name, tc2.name
 ORDER BY sq10.composite_score DESC
 )
 --Main query with added budget constraint
-SELECT * 
+SELECT *
 FROM (
     SELECT *,
     SUM(ac.max_bid_price) OVER (ORDER BY ac.composite_score DESC, customer_id ASC) AS cm_budget
     FROM aggregation_cte ac
-) 
+)
 WHERE cm_budget <= 50000;
