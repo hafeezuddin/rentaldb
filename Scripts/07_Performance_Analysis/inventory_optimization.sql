@@ -37,7 +37,7 @@ Seasonal staffing recommendations based on demand patterns
 Priority list of films to acquire/remove
  */
 
- --CTE to calculate total available copies for each film
+ --CTE to retrieve core metrics for each film
  WITH film_data AS (
     SELECT f.film_id, 
         f.title, COUNT(i.inventory_id) AS no_of_copies_avilable, 
@@ -51,4 +51,15 @@ Priority list of films to acquire/remove
     WHERE r.return_date IS NOT NULL AND r.rental_date BETWEEN '01-01-2005' AND '12-31-2005'
     GROUP BY 1,2
     ORDER BY 1 ASC
+ ),
+ rentals_per_copy AS (
+    SELECT f.film_id, f.title,
+    EXTRACT('Month' FROM r.rental_date) AS month,
+    COUNT(*)
+    FROM film f
+    INNER JOIN inventory i ON f.film_id = i.film_id
+    INNER JOIN rental r ON i.inventory_id = r.inventory_id
+    WHERE r.return_date IS NOT NULL AND r.rental_date BETWEEN '01-01-2005' AND '12-31-2005'
+    GROUP BY 1,2,3
+    ORDER BY 1
  )
